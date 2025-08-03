@@ -1,0 +1,21 @@
+{
+  "name": "inception-express",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "Stanley Winata <winatastanley355@gmail.com>",
+  "license": "MIT",
+  "scripts": {
+    "start": "ts-node src/index.ts",
+    "build": "tsc",
+    "serve": "node dist/index.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "ts-node": "^10.9.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.1.0",
+    "typescript": "^5.9.2"
+  }
+}
