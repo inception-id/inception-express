@@ -1,5 +1,6 @@
 import { pg } from "../db/pg";
 import { TABLES } from "../db/tables";
+import { logger } from "../lib/logger";
 
 export type WhatsappSession = {
   id: string;
@@ -14,6 +15,7 @@ export const createWhatsappSession = async (
   userId: string,
   phone: string,
 ): Promise<WhatsappSession[]> => {
+  logger.info("createWhatsappSession", { userId, phone });
   try {
     return await pg(TABLES.WHATSAPP_SESSIONS)
       .insert({
@@ -24,7 +26,25 @@ export const createWhatsappSession = async (
       .where({ user_id: userId, phone })
       .returning("*");
   } catch (error) {
-    console.error("createWhatsappSession", error);
+    logger.error("createWhatsappSession", error);
+    return [];
+  }
+};
+
+export const updateWhatsappSession = async (
+  id: string,
+  payload: Partial<Pick<WhatsappSession, "phone" | "is_ready">>,
+): Promise<WhatsappSession[]> => {
+  logger.info("updateWhatsappSession", { id, payload });
+  try {
+    return await pg(TABLES.WHATSAPP_SESSIONS)
+      .update({
+        ...payload,
+      })
+      .where({ id })
+      .returning("*");
+  } catch (error) {
+    logger.error("updateWhatsappSession", error);
     return [];
   }
 };

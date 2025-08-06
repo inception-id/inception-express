@@ -4,12 +4,14 @@ import { responseJson } from "../middleware/response";
 import { Client } from "whatsapp-web.js";
 import { findUserById } from "../users/services";
 import { createWhatsappSession } from "../whatsapp-sessions/services";
+import { logger } from "../lib/logger";
 
 export const whatsappRouter = Router();
 
 const basePath = "/whatsapp";
 whatsappRouter.post("/sessions", async (req, res) => {
   const path = req.path;
+  // logger.info(`${basePath + path} Received request to create WhatsApp session`);
   if (!req.body) {
     const json = responseJson(400, null, "Missing userId and phone");
     res.status(400).json(json);
@@ -47,16 +49,11 @@ whatsappRouter.post("/sessions", async (req, res) => {
       return;
     }
     const client = await initWhatsappClient(session[0].id);
-    if (client.info) {
-      const qr = whatsappQrStore.get(session[0].id);
-      const json = responseJson(201, { qr }, "");
-      res.status(201).json(json);
-    } else {
-      const json = responseJson(500, null, "Fail to create QR code");
-      res.status(500).json(json);
-    }
+    const qr = whatsappQrStore.get(session[0].id);
+    const json = responseJson(201, { qr }, "");
+    res.status(201).json(json);
   } catch (err: any) {
-    console.error(basePath + req.path, err);
+    logger.error(basePath + path, err);
     const json = responseJson(500, null, "Internal server error");
     res.status(500).json(json);
   }

@@ -5,10 +5,10 @@ export const app = express();
 
 app.use(express.json());
 
+app.use("/whatsapp", whatsappRouter);
 app.get("/", async (req, res) => {
   res.send("Hello World!");
 });
-app.use("/whatsapp", whatsappRouter);
 
 const port = 5500;
 app.listen(port, () => {
