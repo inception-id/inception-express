@@ -12,6 +12,7 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "express": "^5.1.0",
     "husky": "^9.1.7",
     "knex": "^3.1.0",
@@ -21,6 +22,7 @@
     "winston": "^3.17.0"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/node": "^24.1.0",
     "@types/qrcode-terminal": "^0.12.2",
