@@ -8,10 +8,12 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "nodemon src/index.ts",
-    "puppeteer-install": "node node_modules/puppeteer/install.js"
+    "puppeteer-install": "node node_modules/puppeteer/install.js",
+    "prepare": "husky"
   },
   "dependencies": {
     "express": "^5.1.0",
+    "husky": "^9.1.7",
     "knex": "^3.1.0",
     "pg": "^8.16.3",
     "qrcode-terminal": "^0.12.0",
