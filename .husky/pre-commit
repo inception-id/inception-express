@@ -1,2 +1,1 @@
-yarn
 npx prettier -u --write $(git diff --cached --name-only --diff-filter=ACMR | sed 's| |\\ |g')
