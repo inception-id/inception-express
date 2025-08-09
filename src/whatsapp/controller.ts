@@ -15,7 +15,7 @@ import { accessTokenMiddleware } from "../middleware/request";
 export const whatsappRouter = Router();
 
 const basePath = "/whatsapp";
-whatsappRouter.post("/sessions", accessTokenMiddleware, async (req, res) => {
+whatsappRouter.post("/sessions", async (req, res) => {
   const path = req.path;
   // logger.info(`${basePath + path} Received request to create WhatsApp session`);
   if (!req.body) {
@@ -23,7 +23,7 @@ whatsappRouter.post("/sessions", accessTokenMiddleware, async (req, res) => {
     return res.status(400).json(json);
   }
 
-  const { userId, phone } = req.body as {
+  let { userId, phone } = req.body as {
     userId: string;
     phone: string;
   };
@@ -37,6 +37,10 @@ whatsappRouter.post("/sessions", accessTokenMiddleware, async (req, res) => {
     // should start with 8 and contain only digits
     const json = responseJson(400, null, "Invalid phone number");
     return res.status(400).json(json);
+  }
+
+  if (phone.startsWith("0")) {
+    phone = phone.slice(1, phone.length);
   }
 
   try {
