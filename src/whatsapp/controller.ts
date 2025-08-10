@@ -10,6 +10,7 @@ import { Client } from "whatsapp-web.js";
 import { findUserById, User } from "../users/services";
 import {
   createWhatsappSession,
+  deleteWhatsappSession,
   findWhatsappSessions,
 } from "../whatsapp-sessions/services";
 import { logger } from "../lib/logger";
@@ -96,6 +97,29 @@ whatsappRouter.get("/sessions", accessTokenMiddleware, async (req, res) => {
     return res.status(500).json(json);
   }
 });
+
+whatsappRouter.delete(
+  "/sessions/:sessionId",
+  accessTokenMiddleware,
+  async (req, res) => {
+    const path = req.path;
+    const params = req.params;
+    const endpoint = `${basePath}/${path}/${params.sessionId}`;
+    logger.info(`${endpoint} Received request to delete WhatsApp session`);
+
+    try {
+      const accessToken = req.header("x-access-token") as string;
+      const jwt = decode(accessToken) as JwtPayload & User;
+      const sessions = await deleteWhatsappSession(params.sessionId, jwt.id);
+      const json = responseJson(200, sessions, "");
+      return res.status(200).json(json);
+    } catch (err: any) {
+      logger.error(endpoint, err);
+      const json = responseJson(500, null, "Internal server error");
+      return res.status(500).json(json);
+    }
+  },
+);
 
 whatsappRouter.post("/message/:clientId", async (req, res) => {
   const { phoneId, targetPhoneNumber, message } = req.body as {

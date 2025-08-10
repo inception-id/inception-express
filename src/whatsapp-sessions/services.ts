@@ -63,3 +63,19 @@ export const findWhatsappSessions = async (
     return [];
   }
 };
+
+export const deleteWhatsappSession = async (
+  sessionId: string,
+  userId: string,
+): Promise<WhatsappSession[] | null> => {
+  logger.info("deleteWhatsappSession", { sessionId, userId });
+  try {
+    return await pg(TABLES.WHATSAPP_SESSIONS)
+      .where({ id: sessionId, user_id: userId })
+      .del()
+      .returning("*");
+  } catch (error) {
+    logger.error("deleteWhatsappSession", error);
+    return [];
+  }
+};
