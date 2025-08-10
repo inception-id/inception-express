@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  destroyWhatsappClient,
   initWhatsappClient,
   sendWhatsapp,
   whatsappClientStore,
@@ -11,11 +12,13 @@ import { findUserById, User } from "../users/services";
 import {
   createWhatsappSession,
   deleteWhatsappSession,
-  findWhatsappSessions,
+  findManyWhatsappSessions,
+  findOneWhatsappSession,
 } from "../whatsapp-sessions/services";
 import { logger } from "../lib/logger";
 import { accessTokenMiddleware } from "../middleware/request";
 import { decode, JwtPayload } from "jsonwebtoken";
+import { createWhatsappMessage } from "../whatsapp-messages/services";
 
 export const whatsappRouter = Router();
 
@@ -85,7 +88,7 @@ whatsappRouter.get("/sessions", accessTokenMiddleware, async (req, res) => {
   try {
     const accessToken = req.header("x-access-token") as string;
     const jwt = decode(accessToken) as JwtPayload & User;
-    const sessions = await findWhatsappSessions({
+    const sessions = await findManyWhatsappSessions({
       user_id: jwt.id,
       is_ready: true,
     });
@@ -104,13 +107,14 @@ whatsappRouter.delete(
   async (req, res) => {
     const path = req.path;
     const params = req.params;
-    const endpoint = `${basePath}/${path}/${params.sessionId}`;
+    const endpoint = `${basePath}${path}/${params.sessionId}`;
     logger.info(`${endpoint} Received request to delete WhatsApp session`);
 
     try {
       const accessToken = req.header("x-access-token") as string;
       const jwt = decode(accessToken) as JwtPayload & User;
       const sessions = await deleteWhatsappSession(params.sessionId, jwt.id);
+      if (sessions) await destroyWhatsappClient(params.sessionId);
       const json = responseJson(200, sessions, "");
       return res.status(200).json(json);
     } catch (err: any) {
@@ -121,30 +125,70 @@ whatsappRouter.delete(
   },
 );
 
-whatsappRouter.post("/message/:clientId", async (req, res) => {
-  const { phoneId, targetPhoneNumber, message } = req.body as {
-    phoneId: string;
-    targetPhoneNumber: string;
-    message: string;
-  };
+whatsappRouter.post("/message", async (req, res) => {
+  const { whatsappPhoneId, whatsappPhoneNumber, targetPhoneNumber, message } =
+    req.body as {
+      whatsappPhoneId: string;
+      whatsappPhoneNumber: string;
+      targetPhoneNumber: string;
+      message: string;
+    };
+
+  const path = req.path;
+  const endpoint = basePath + path;
+  logger.info(`${endpoint} Received request to send WhatsApp message`);
+
+  if (
+    !whatsappPhoneId ||
+    !whatsappPhoneNumber ||
+    !targetPhoneNumber ||
+    !message
+  ) {
+    const json = responseJson(400, null, "Missing required parameters");
+    return res.status(400).json(json);
+  }
+
+  if (!whatsappPhoneNumber.match(/^8\d*$/) || whatsappPhoneNumber.length < 9) {
+    // should start with 8 and contain only digits
+    const json = responseJson(
+      400,
+      null,
+      "Invalid whatsappPhoneNumber: Should start with 8 and contain only digits",
+    );
+    return res.status(400).json(json);
+  }
+
+  if (!targetPhoneNumber.match(/^8\d*$/) || targetPhoneNumber.length < 9) {
+    // should start with 8 and contain only digits
+    const json = responseJson(
+      400,
+      null,
+      "Invalid targetPhoneNumber: Should start with 8, contain only digits, and be at least 9 characters long",
+    );
+    return res.status(400).json(json);
+  }
 
   try {
-    let client = whatsappClientStore.get(phoneId);
-    // if (!client) {
-    //   console.log(`CLIENT ID: ${clientId} does not exist!`);
-    //   const newClient = await initWhatsappClient(clientId);
-    //   whatsappClientStore.set(clientId, newClient);
-    //   client = newClient;
-    // } else {
-    //   console.log(`CLIENT ID: ${clientId} already exists!`);
-    // }
-    // const msg = await sendWhatsapp(clientId, client);
-    // const qr = whatsappQrStore.get(clientId);
-    const json = responseJson(
-      201,
-      { message: "Message sent successfully" },
-      "",
+    const whatsappSession = await findOneWhatsappSession({
+      id: whatsappPhoneId,
+      phone: whatsappPhoneNumber,
+      is_ready: true,
+    });
+    if (!whatsappSession) {
+      const json = responseJson(404, null, "Whatsapp id and number not found");
+      return res.status(404).json(json);
+    }
+    const sentMessage = await sendWhatsapp(
+      whatsappSession.id,
+      targetPhoneNumber,
+      message,
     );
+    const whatsappMessage = await createWhatsappMessage({
+      session_id: sentMessage.sessionId,
+      target_phone: sentMessage.phoneNumber,
+      text_message: sentMessage.message,
+    });
+    const json = responseJson(201, whatsappMessage, "");
     res.status(201).json(json);
   } catch (err: any) {
     const json = responseJson(500, null, err?.response.message);

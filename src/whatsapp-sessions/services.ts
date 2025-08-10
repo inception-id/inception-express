@@ -23,7 +23,6 @@ export const createWhatsappSession = async (
         phone,
         is_ready: false,
       })
-      .where({ user_id: userId, phone })
       .returning("*");
   } catch (error) {
     logger.error("createWhatsappSession", error);
@@ -49,8 +48,12 @@ export const updateWhatsappSession = async (
   }
 };
 
-export const findWhatsappSessions = async (
-  searchKeys: Partial<Pick<WhatsappSession, "user_id" | "phone" | "is_ready">>,
+type WhatsappSessionSearchKey = Partial<
+  Pick<WhatsappSession, "id" | "user_id" | "phone" | "is_ready">
+>;
+
+export const findManyWhatsappSessions = async (
+  searchKeys: WhatsappSessionSearchKey,
 ): Promise<WhatsappSession[]> => {
   logger.info("findWhatsappSessions", { ...searchKeys });
   try {
@@ -61,6 +64,21 @@ export const findWhatsappSessions = async (
   } catch (error) {
     logger.error("findWhatsappSessions", error);
     return [];
+  }
+};
+
+export const findOneWhatsappSession = async (
+  searchKeys: WhatsappSessionSearchKey,
+): Promise<WhatsappSession | null> => {
+  logger.info("findOneWhatsappSession", { ...searchKeys });
+  try {
+    return await pg(TABLES.WHATSAPP_SESSIONS)
+      .where({ ...searchKeys })
+      .orderBy("created_at", "desc")
+      .first();
+  } catch (error) {
+    logger.error("findOneWhatsappSession", error);
+    return null;
   }
 };
 

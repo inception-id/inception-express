@@ -1,4 +1,4 @@
-import { Client, LocalAuth } from "whatsapp-web.js";
+import WAWebJS, { Client, LocalAuth } from "whatsapp-web.js";
 import qrCodeTerminal from "qrcode-terminal";
 import {
   createWhatsappSession,
@@ -41,31 +41,55 @@ export const initWhatsappClient = async (
   return client;
 };
 
-export const sendWhatsapp = async (
-  clientId: string,
-  client: Client,
+export const destroyWhatsappClient = async (
+  sessionId: string,
 ): Promise<Client> => {
-  // client.on("authenticated", async () => {
-  // });
+  logger.info(`Destroying WhatsApp client ${sessionId}`);
+  const client = new Client({
+    puppeteer: {
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    },
+    authStrategy: new LocalAuth({
+      clientId: sessionId,
+    }),
+  });
 
-  try {
-    console.log(`Message Client ${clientId} is ready!`);
-
-    let number = "";
-    // Number where you want to send the message.
-
-    // Your message.
-    const text = "Kirim whatsapp lagi";
-
-    // Getting chatId from the number.
-    // we have to delete "+" from the beginning and add "@c.us" at the end of the number.
-    const chatId = number + "@c.us";
-
-    // Sending message.
-    const msg = await client.sendMessage(chatId, text);
-    console.log("Success sending message from ", msg.from);
-  } catch (error) {
-    console.error(`Error sending message from ${clientId}:`, error);
-  }
+  await client.destroy();
   return client;
+};
+
+export const sendWhatsapp = async (
+  sessionId: string,
+  phoneNumber: string,
+  message: string,
+): Promise<{ sessionId: string; phoneNumber: string; message: string }> => {
+  logger.info(`Sending WhatsApp message to ${phoneNumber}`);
+  const chatId = `62` + phoneNumber + "@c.us";
+
+  let clientStore = whatsappClientStore.get(sessionId);
+  if (!clientStore) {
+    logger.info(`No client store for ${sessionId}, reinitializing...`);
+    const client = new Client({
+      puppeteer: {
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      },
+      authStrategy: new LocalAuth({
+        clientId: sessionId,
+      }),
+    });
+
+    await client.initialize();
+
+    // When the client is ready, run this code (only once)
+    client.once("ready", async () => {
+      whatsappClientStore.set(sessionId, client);
+      await client.sendMessage(chatId, message);
+    });
+
+    clientStore = client;
+    return { sessionId, phoneNumber, message };
+  } else {
+    await clientStore.sendMessage(chatId, message);
+    return { sessionId, phoneNumber, message };
+  }
 };
