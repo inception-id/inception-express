@@ -7,35 +7,44 @@ import {
 } from "./services";
 import { responseJson } from "../middleware/response";
 import { Client } from "whatsapp-web.js";
-import { findUserById } from "../users/services";
-import { createWhatsappSession } from "../whatsapp-sessions/services";
+import { findUserById, User } from "../users/services";
+import {
+  createWhatsappSession,
+  findWhatsappSessions,
+} from "../whatsapp-sessions/services";
 import { logger } from "../lib/logger";
 import { accessTokenMiddleware } from "../middleware/request";
+import { decode, JwtPayload } from "jsonwebtoken";
 
 export const whatsappRouter = Router();
 
 const basePath = "/whatsapp";
-whatsappRouter.post("/sessions", async (req, res) => {
+
+whatsappRouter.post("/sessions", accessTokenMiddleware, async (req, res) => {
   const path = req.path;
-  // logger.info(`${basePath + path} Received request to create WhatsApp session`);
+  logger.info(`${basePath + path} Received request to create WhatsApp session`);
+
   if (!req.body) {
     const json = responseJson(400, null, "Missing userId and phone");
     return res.status(400).json(json);
   }
 
-  let { userId, phone } = req.body as {
-    userId: string;
+  let { phone } = req.body as {
     phone: string;
   };
 
-  if (!userId || !phone) {
+  if (!phone) {
     const json = responseJson(400, null, "Missing userId and phone");
     return res.status(400).json(json);
   }
 
   if (!phone.match(/^8\d*$/) || phone.length < 9) {
     // should start with 8 and contain only digits
-    const json = responseJson(400, null, "Invalid phone number");
+    const json = responseJson(
+      400,
+      null,
+      "Phone should start with 8 and contain only digits",
+    );
     return res.status(400).json(json);
   }
 
@@ -44,7 +53,9 @@ whatsappRouter.post("/sessions", async (req, res) => {
   }
 
   try {
-    const user = await findUserById(userId);
+    const accessToken = req.header("x-access-token") as string;
+    const jwt = decode(accessToken) as JwtPayload & User;
+    const user = await findUserById(jwt.id);
     if (!user) {
       const json = responseJson(400, null, "User not found");
       return res.status(400).json(json);
@@ -59,6 +70,26 @@ whatsappRouter.post("/sessions", async (req, res) => {
     const qr = whatsappQrStore.get(session[0].id);
     const json = responseJson(201, { qr }, "");
     return res.status(201).json(json);
+  } catch (err: any) {
+    logger.error(basePath + path, err);
+    const json = responseJson(500, null, "Internal server error");
+    return res.status(500).json(json);
+  }
+});
+
+whatsappRouter.get("/sessions", accessTokenMiddleware, async (req, res) => {
+  const path = req.path;
+  logger.info(`${basePath + path} Received request to find WhatsApp sessions`);
+
+  try {
+    const accessToken = req.header("x-access-token") as string;
+    const jwt = decode(accessToken) as JwtPayload & User;
+    const sessions = await findWhatsappSessions({
+      user_id: jwt.id,
+      is_ready: true,
+    });
+    const json = responseJson(200, sessions, "");
+    return res.status(200).json(json);
   } catch (err: any) {
     logger.error(basePath + path, err);
     const json = responseJson(500, null, "Internal server error");

@@ -48,3 +48,18 @@ export const updateWhatsappSession = async (
     return [];
   }
 };
+
+export const findWhatsappSessions = async (
+  searchKeys: Partial<Pick<WhatsappSession, "user_id" | "phone" | "is_ready">>,
+): Promise<WhatsappSession[]> => {
+  logger.info("findWhatsappSessions", { ...searchKeys });
+  try {
+    return await pg(TABLES.WHATSAPP_SESSIONS)
+      .where({ ...searchKeys })
+      .orderBy("created_at", "desc")
+      .returning("*");
+  } catch (error) {
+    logger.error("findWhatsappSessions", error);
+    return [];
+  }
+};
