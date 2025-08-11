@@ -23,11 +23,11 @@ export const createWhatsappMessage = async (
     "session_id" | "target_phone" | "text_message" | "message_type"
   >,
 ): Promise<WhatsappMessage[]> => {
-  logger.info("createWhatsappSession", payload);
+  logger.info("createWhatsappMessage", payload);
   try {
     return await pg(TABLES.WHATSAPP_MESSAGES).insert(payload).returning("*");
   } catch (error) {
-    logger.error("createWhatsappSession", error);
+    logger.error("createWhatsappMessage", error);
     return [];
   }
 };
@@ -52,5 +52,20 @@ export const countCurrentMonthWhatsappMessage = async (): Promise<
   } catch (error) {
     logger.error("countCurrentMonthWhatsappMessage", error);
     throw error; // Do not return any default here or we lost our profit
+  }
+};
+
+export const findManyWhatsappMessages = async (
+  sessionIds: string[],
+): Promise<WhatsappMessage[]> => {
+  logger.info("findWhatsappMessages");
+  try {
+    return await pg(TABLES.WHATSAPP_MESSAGES)
+      .whereIn("session_id", sessionIds)
+      .orderBy("created_at", "desc")
+      .returning("*");
+  } catch (error) {
+    logger.error("findWhatsapsMessages", error);
+    return [];
   }
 };

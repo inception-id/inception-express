@@ -21,6 +21,7 @@ import { decode, JwtPayload } from "jsonwebtoken";
 import {
   countCurrentMonthWhatsappMessage,
   createWhatsappMessage,
+  findManyWhatsappMessages,
   WhatsappMessageType,
 } from "../whatsapp-messages/services";
 
@@ -129,7 +130,7 @@ whatsappRouter.delete(
   },
 );
 
-whatsappRouter.post("/message", async (req, res) => {
+whatsappRouter.post("/messages", async (req, res) => {
   let {
     whatsappPhoneId,
     whatsappPhoneNumber,
@@ -224,7 +225,9 @@ whatsappRouter.post("/message", async (req, res) => {
     const json = responseJson(
       201,
       {
-        id: whatsappMessage[0].id,
+        messageId: whatsappMessage[0].id,
+        whatsappPhoneId,
+        whatsappPhoneNumber,
         targetPhoneNumber,
         message,
         environment: environment,
@@ -233,7 +236,23 @@ whatsappRouter.post("/message", async (req, res) => {
     );
     res.status(201).json(json);
   } catch (err: any) {
-    const json = responseJson(500, null, err?.response.message);
+    const json = responseJson(500, null, "");
+    res.status(500).json(json);
+  }
+});
+
+whatsappRouter.get("/messages", accessTokenMiddleware, async (req, res) => {
+  try {
+    const accessToken = req.header("x-access-token") as string;
+    const jwt = decode(accessToken) as JwtPayload & User;
+    const sessions = await findManyWhatsappSessions({ user_id: jwt.id });
+    const sessionIds = sessions.map((session) => session.id);
+    const messages = await findManyWhatsappMessages(sessionIds);
+
+    const json = responseJson(200, messages, "");
+    res.status(500).json(json);
+  } catch (err: any) {
+    const json = responseJson(500, null, "");
     res.status(500).json(json);
   }
 });

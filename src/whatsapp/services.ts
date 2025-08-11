@@ -25,7 +25,6 @@ export const initWhatsappClient = async (
   // When the client received QR-Code
   client.on("qr", (qr) => {
     whatsappQrStore.set(sessionId, qr); // store QR code
-    qrCodeTerminal.generate(qr, { small: true });
     logger.info(`QR code received for session ${sessionId}`);
   });
 
