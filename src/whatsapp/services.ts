@@ -83,7 +83,7 @@ export const sendWhatsapp = async (
     // When the client is ready, run this code (only once)
     client.once("ready", async () => {
       whatsappClientStore.set(sessionId, client);
-      await client.sendMessage(chatId, message);
+      const msg = await client.sendMessage(chatId, message);
     });
 
     clientStore = client;

@@ -18,7 +18,11 @@ import {
 import { logger } from "../lib/logger";
 import { accessTokenMiddleware } from "../middleware/request";
 import { decode, JwtPayload } from "jsonwebtoken";
-import { createWhatsappMessage } from "../whatsapp-messages/services";
+import {
+  countCurrentMonthWhatsappMessage,
+  createWhatsappMessage,
+  WhatsappMessageType,
+} from "../whatsapp-messages/services";
 
 export const whatsappRouter = Router();
 
@@ -126,13 +130,19 @@ whatsappRouter.delete(
 );
 
 whatsappRouter.post("/message", async (req, res) => {
-  const { whatsappPhoneId, whatsappPhoneNumber, targetPhoneNumber, message } =
-    req.body as {
-      whatsappPhoneId: string;
-      whatsappPhoneNumber: string;
-      targetPhoneNumber: string;
-      message: string;
-    };
+  let {
+    whatsappPhoneId,
+    whatsappPhoneNumber,
+    targetPhoneNumber,
+    message,
+    environment,
+  } = req.body as {
+    whatsappPhoneId: string;
+    whatsappPhoneNumber: string;
+    targetPhoneNumber: string;
+    message: string;
+    environment: WhatsappMessageType;
+  };
 
   const path = req.path;
   const endpoint = basePath + path;
@@ -142,7 +152,8 @@ whatsappRouter.post("/message", async (req, res) => {
     !whatsappPhoneId ||
     !whatsappPhoneNumber ||
     !targetPhoneNumber ||
-    !message
+    !message ||
+    !environment
   ) {
     const json = responseJson(400, null, "Missing required parameters");
     return res.status(400).json(json);
@@ -168,6 +179,10 @@ whatsappRouter.post("/message", async (req, res) => {
     return res.status(400).json(json);
   }
 
+  if (environment !== WhatsappMessageType.Production) {
+    environment = WhatsappMessageType.Development;
+  }
+
   try {
     const whatsappSession = await findOneWhatsappSession({
       id: whatsappPhoneId,
@@ -178,6 +193,23 @@ whatsappRouter.post("/message", async (req, res) => {
       const json = responseJson(404, null, "Whatsapp id and number not found");
       return res.status(404).json(json);
     }
+    const messageCount = await countCurrentMonthWhatsappMessage();
+    const messageEnvironment = messageCount.find(
+      (msg) => msg.message_type === environment,
+    );
+    if (environment === WhatsappMessageType.Development) {
+      if (messageEnvironment && Number(messageEnvironment?.count) > 100) {
+        const json = responseJson(
+          429,
+          null,
+          `Rate limit exceeded for ${environment} Environment`,
+        );
+        return res.status(429).json(json);
+      }
+    } else {
+      // handle production here
+    }
+
     const sentMessage = await sendWhatsapp(
       whatsappSession.id,
       targetPhoneNumber,
@@ -187,8 +219,18 @@ whatsappRouter.post("/message", async (req, res) => {
       session_id: sentMessage.sessionId,
       target_phone: sentMessage.phoneNumber,
       text_message: sentMessage.message,
+      message_type: environment,
     });
-    const json = responseJson(201, whatsappMessage, "");
+    const json = responseJson(
+      201,
+      {
+        id: whatsappMessage[0].id,
+        targetPhoneNumber,
+        message,
+        environment: environment,
+      },
+      "",
+    );
     res.status(201).json(json);
   } catch (err: any) {
     const json = responseJson(500, null, err?.response.message);
