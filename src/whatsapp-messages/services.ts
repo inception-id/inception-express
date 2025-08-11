@@ -32,10 +32,10 @@ export const createWhatsappMessage = async (
   }
 };
 
-export const countCurrentMonthWhatsappMessage = async (): Promise<
-  { message_type: WhatsappMessageType; count: string }[]
-> => {
-  logger.info("countCurrentMonthWhatsappMessage");
+export const countCurrentMonthWhatsappMessage = async (
+  sessionIds: string[],
+): Promise<{ message_type: WhatsappMessageType; count: string }[]> => {
+  logger.info("countCurrentMonthWhatsappMessage", { sessionIds });
   try {
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
@@ -47,7 +47,8 @@ export const countCurrentMonthWhatsappMessage = async (): Promise<
     return await pg(TABLES.WHATSAPP_MESSAGES)
       .select("message_type")
       .count("message_type as count")
-      .whereBetween("created_at", [startOfMonth, endOfMonth])
+      .whereIn("session_id", sessionIds)
+      .andWhereBetween("created_at", [startOfMonth, endOfMonth])
       .groupBy("message_type");
   } catch (error) {
     logger.error("countCurrentMonthWhatsappMessage", error);

@@ -194,7 +194,12 @@ whatsappRouter.post("/messages", async (req, res) => {
       const json = responseJson(404, null, "Whatsapp id and number not found");
       return res.status(404).json(json);
     }
-    const messageCount = await countCurrentMonthWhatsappMessage();
+    const userSessions = await findManyWhatsappSessions({
+      user_id: whatsappSession.user_id,
+      is_ready: true,
+    });
+    const sessionIds = userSessions.map((session) => session.id);
+    const messageCount = await countCurrentMonthWhatsappMessage(sessionIds);
     const messageEnvironment = messageCount.find(
       (msg) => msg.message_type === environment,
     );
