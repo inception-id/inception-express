@@ -56,13 +56,31 @@ export const countCurrentMonthWhatsappMessage = async (
   }
 };
 
+type FindManyWhatsappMessagesPayload = {
+  sessionIds: string[];
+  offset: number;
+  limit: number;
+  environment?: WhatsappMessageType;
+};
+
 export const findManyWhatsappMessages = async (
-  sessionIds: string[],
+  payload: FindManyWhatsappMessagesPayload,
 ): Promise<WhatsappMessage[]> => {
   logger.info("findWhatsappMessages");
   try {
+    if (payload.environment) {
+      return await pg(TABLES.WHATSAPP_MESSAGES)
+        .whereIn("session_id", payload.sessionIds)
+        .andWhere("message_type", payload.environment)
+        .offset(payload.offset)
+        .limit(payload.limit)
+        .orderBy("created_at", "desc")
+        .returning("*");
+    }
     return await pg(TABLES.WHATSAPP_MESSAGES)
-      .whereIn("session_id", sessionIds)
+      .whereIn("session_id", payload.sessionIds)
+      .offset(payload.offset)
+      .limit(payload.limit)
       .orderBy("created_at", "desc")
       .returning("*");
   } catch (error) {
@@ -70,3 +88,39 @@ export const findManyWhatsappMessages = async (
     return [];
   }
 };
+
+export const countWhatsappMessages = async (
+  payload: Pick<FindManyWhatsappMessagesPayload, "sessionIds" | "environment">,
+): Promise<{ count: string }> => {
+  logger.info("countWhatsappMessages");
+  try {
+    if (payload.environment) {
+      return (await pg(TABLES.WHATSAPP_MESSAGES)
+        .count("id")
+        .whereIn("session_id", payload.sessionIds)
+        .andWhere("message_type", payload.environment)
+        .first()) as { count: string };
+    }
+    return (await pg(TABLES.WHATSAPP_MESSAGES)
+      .count("id")
+      .whereIn("session_id", payload.sessionIds)
+      .first()) as { count: string };
+  } catch (error) {
+    logger.error("countWhatsapsMessages", error);
+    throw error;
+  }
+};
+
+// SELECT
+//     EXTRACT(YEAR FROM created_at) AS year,
+//     EXTRACT(MONTH FROM created_at) AS month,
+// 		message_type,
+//     COUNT(*) AS total_records
+// FROM
+//     whatsapp_messages
+// GROUP BY
+//     EXTRACT(YEAR FROM created_at),
+//     EXTRACT(MONTH FROM created_at),
+// 		message_type
+// ORDER BY
+//     year, month desc;

@@ -20,10 +20,12 @@ import { accessTokenMiddleware } from "../middleware/request";
 import { decode, JwtPayload } from "jsonwebtoken";
 import {
   countCurrentMonthWhatsappMessage,
+  countWhatsappMessages,
   createWhatsappMessage,
   findManyWhatsappMessages,
   WhatsappMessageType,
 } from "../whatsapp-messages/services";
+import { Pagination } from "../lib/types";
 
 export const whatsappRouter = Router();
 
@@ -180,7 +182,7 @@ whatsappRouter.post("/messages", async (req, res) => {
     return res.status(400).json(json);
   }
 
-  if (environment !== WhatsappMessageType.Production) {
+  if (environment !== WhatsappMessageType.Production.toString()) {
     environment = WhatsappMessageType.Development;
   }
 
@@ -248,13 +250,45 @@ whatsappRouter.post("/messages", async (req, res) => {
 
 whatsappRouter.get("/messages", accessTokenMiddleware, async (req, res) => {
   try {
+    const { page, perPage, environment } = req.query as {
+      page?: string;
+      perPage?: string;
+      environment?: WhatsappMessageType;
+    };
+
+    if (
+      environment &&
+      environment !== WhatsappMessageType.Development.toString() &&
+      environment !== WhatsappMessageType.Production.toString()
+    ) {
+      const json = responseJson(400, null, "Invalid environment");
+      return res.status(400).json(json);
+    }
+
     const accessToken = req.header("x-access-token") as string;
     const jwt = decode(accessToken) as JwtPayload & User;
     const sessions = await findManyWhatsappSessions({ user_id: jwt.id });
     const sessionIds = sessions.map((session) => session.id);
-    const messages = await findManyWhatsappMessages(sessionIds);
+    const limit = perPage ? Number(perPage) : 100;
+    const offset = page && Number(page) > 1 ? (Number(page) - 1) * limit : 0;
+    const messages = await findManyWhatsappMessages({
+      sessionIds,
+      offset,
+      limit,
+      environment,
+    });
+    const { count } = await countWhatsappMessages({
+      sessionIds,
+      environment,
+    });
+    const pagination: Pagination = {
+      page: page ? Number(page) : 1,
+      perPage: limit,
+      total: Number(count),
+      totalPages: Number(count) > limit ? Math.round(Number(count) / limit) : 1,
+    };
 
-    const json = responseJson(200, messages, "");
+    const json = responseJson(200, { messages, pagination }, "");
     res.status(500).json(json);
   } catch (err: any) {
     const json = responseJson(500, null, "");
