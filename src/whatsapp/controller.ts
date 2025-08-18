@@ -7,7 +7,6 @@ import {
   whatsappQrStore,
 } from "./services";
 import { responseJson } from "../middleware/response";
-import { Client } from "whatsapp-web.js";
 import { findUserById, User } from "../users/services";
 import {
   createWhatsappSession,

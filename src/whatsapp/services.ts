@@ -1,4 +1,4 @@
-import WAWebJS, { Client, LocalAuth } from "whatsapp-web.js";
+import WAWebJS, { Client, ClientOptions, LocalAuth } from "whatsapp-web.js";
 import qrCodeTerminal from "qrcode-terminal";
 import {
   createWhatsappSession,
@@ -9,18 +9,23 @@ import { logger } from "../lib/logger";
 export const whatsappQrStore = new Map<string, string>();
 export const whatsappClientStore = new Map<string, Client>();
 
-export const initWhatsappClient = async (
-  sessionId: string,
-): Promise<Client> => {
-  logger.info(`Initializing WhatsApp client ${sessionId}`);
-  const client = new Client({
+const createClientOptions = (sessionId: string): ClientOptions => {
+  return {
+    qrMaxRetries: 1,
     puppeteer: {
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     },
     authStrategy: new LocalAuth({
       clientId: sessionId,
     }),
-  });
+  };
+};
+
+export const initWhatsappClient = async (
+  sessionId: string,
+): Promise<Client> => {
+  logger.info(`Initializing WhatsApp client ${sessionId}`);
+  const client = new Client(createClientOptions(sessionId));
 
   // When the client received QR-Code
   client.on("qr", (qr) => {
@@ -35,6 +40,11 @@ export const initWhatsappClient = async (
     logger.info(`WhatsApp client ${sessionId} is ready`);
   });
 
+  client.on("disconnected", async (reason) => {
+    logger.info(`Client ${sessionId} was logged out`, reason); // Client was logged out Max qrcode retries reached
+    client.destroy();
+  });
+
   await client.initialize();
 
   return client;
@@ -44,14 +54,7 @@ export const destroyWhatsappClient = async (
   sessionId: string,
 ): Promise<Client> => {
   logger.info(`Destroying WhatsApp client ${sessionId}`);
-  const client = new Client({
-    puppeteer: {
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    },
-    authStrategy: new LocalAuth({
-      clientId: sessionId,
-    }),
-  });
+  const client = new Client(createClientOptions(sessionId));
 
   await client.destroy();
   return client;
@@ -68,14 +71,7 @@ export const sendWhatsapp = async (
   let clientStore = whatsappClientStore.get(sessionId);
   if (!clientStore) {
     logger.info(`No client store for ${sessionId}, reinitializing...`);
-    const client = new Client({
-      puppeteer: {
-        args: ["--no-sandbox", "--disable-setuid-sandbox"],
-      },
-      authStrategy: new LocalAuth({
-        clientId: sessionId,
-      }),
-    });
+    const client = new Client(createClientOptions(sessionId));
 
     await client.initialize();
 
