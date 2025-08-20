@@ -6,6 +6,7 @@ import {
 } from "../whatsapp-sessions/services";
 import { logger } from "../lib/logger";
 import fs from "fs";
+import path from "path";
 
 export const whatsappQrStore = new Map<string, string>();
 export const whatsappClientStore = new Map<string, Client>();
@@ -55,6 +56,7 @@ export const destroyWhatsappClient = async (
   sessionId: string,
 ): Promise<boolean> => {
   logger.info(`Destroying WhatsApp client ${sessionId}`);
+  const authPath = path.join(__dirname, ".wwebjs_auth");
   let clientStore = whatsappClientStore.get(sessionId);
   if (!clientStore) {
     logger.info(`No client store for ${sessionId}, reinitializing...`);
@@ -63,14 +65,14 @@ export const destroyWhatsappClient = async (
 
     client.once("ready", async () => {
       client.destroy();
-      fs.rmSync(`.wwebjs_auth/session-${sessionId}`, {
+      fs.rmSync(`${authPath}/session-${sessionId}`, {
         recursive: true,
         force: true,
       });
     });
   } else {
     clientStore.destroy();
-    fs.rmSync(`.wwebjs_auth/session-${sessionId}`, {
+    fs.rmSync(`${authPath}/session-${sessionId}`, {
       recursive: true,
       force: true,
     });
