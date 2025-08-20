@@ -5,6 +5,7 @@ import {
   updateWhatsappSession,
 } from "../whatsapp-sessions/services";
 import { logger } from "../lib/logger";
+import fs from "fs";
 
 export const whatsappQrStore = new Map<string, string>();
 export const whatsappClientStore = new Map<string, Client>();
@@ -58,15 +59,21 @@ export const destroyWhatsappClient = async (
   if (!clientStore) {
     logger.info(`No client store for ${sessionId}, reinitializing...`);
     const client = new Client(createClientOptions(sessionId));
-
     await client.initialize();
 
     client.once("ready", async () => {
-      whatsappClientStore.delete(sessionId);
       client.destroy();
+      fs.rmSync(`.wwebjs_auth/session-${sessionId}`, {
+        recursive: true,
+        force: true,
+      });
     });
   } else {
     clientStore.destroy();
+    fs.rmSync(`.wwebjs_auth/session-${sessionId}`, {
+      recursive: true,
+      force: true,
+    });
   }
   return true;
 };
@@ -92,7 +99,6 @@ export const sendWhatsapp = async (
       const msg = await client.sendMessage(chatId, message);
     });
 
-    clientStore = client;
     return { sessionId, phoneNumber, message };
   } else {
     await clientStore.sendMessage(chatId, message);
