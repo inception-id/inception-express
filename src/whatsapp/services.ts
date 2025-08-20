@@ -16,7 +16,6 @@ const createClientOptions = (sessionId: string): ClientOptions => {
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     },
     authStrategy: new LocalAuth({
-      dataPath: "/sessions",
       clientId: sessionId,
     }),
   };
