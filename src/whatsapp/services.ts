@@ -75,6 +75,7 @@ export const destroyWhatsappClient = async (
       recursive: true,
       force: true,
     });
+    whatsappClientStore.delete(sessionId);
   }
   return true;
 };
