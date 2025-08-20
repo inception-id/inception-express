@@ -16,6 +16,7 @@ const createClientOptions = (sessionId: string): ClientOptions => {
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     },
     authStrategy: new LocalAuth({
+      dataPath: "/sessions",
       clientId: sessionId,
     }),
   };
@@ -52,12 +53,23 @@ export const initWhatsappClient = async (
 
 export const destroyWhatsappClient = async (
   sessionId: string,
-): Promise<Client> => {
+): Promise<boolean> => {
   logger.info(`Destroying WhatsApp client ${sessionId}`);
-  const client = new Client(createClientOptions(sessionId));
+  let clientStore = whatsappClientStore.get(sessionId);
+  if (!clientStore) {
+    logger.info(`No client store for ${sessionId}, reinitializing...`);
+    const client = new Client(createClientOptions(sessionId));
 
-  await client.destroy();
-  return client;
+    await client.initialize();
+
+    client.once("ready", async () => {
+      whatsappClientStore.delete(sessionId);
+      client.destroy();
+    });
+  } else {
+    await clientStore.destroy();
+  }
+  return true;
 };
 
 export const sendWhatsapp = async (
