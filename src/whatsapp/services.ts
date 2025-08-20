@@ -67,7 +67,7 @@ export const destroyWhatsappClient = async (
       client.destroy();
     });
   } else {
-    await clientStore.destroy();
+    clientStore.destroy();
   }
   return true;
 };
