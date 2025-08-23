@@ -9,6 +9,7 @@ export type WhatsappSession = {
   updated_at: string;
   phone: string;
   is_ready: boolean;
+  is_deleted: boolean;
 };
 
 export const createWhatsappSession = async (
@@ -49,7 +50,7 @@ export const updateWhatsappSession = async (
 };
 
 type WhatsappSessionSearchKey = Partial<
-  Pick<WhatsappSession, "id" | "user_id" | "phone" | "is_ready">
+  Pick<WhatsappSession, "id" | "user_id" | "phone" | "is_ready" | "is_deleted">
 >;
 
 export const findManyWhatsappSessions = async (
@@ -89,8 +90,10 @@ export const deleteWhatsappSession = async (
   logger.info("deleteWhatsappSession", { sessionId, userId });
   try {
     return await pg(TABLES.WHATSAPP_SESSIONS)
+      .update({
+        is_deleted: true,
+      })
       .where({ id: sessionId, user_id: userId })
-      .del()
       .returning("*");
   } catch (error) {
     logger.error("deleteWhatsappSession", error);

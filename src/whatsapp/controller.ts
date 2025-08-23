@@ -98,6 +98,7 @@ whatsappRouter.get("/sessions", accessTokenMiddleware, async (req, res) => {
     const sessions = await findManyWhatsappSessions({
       user_id: jwt.id,
       is_ready: true,
+      is_deleted: false,
     });
     const json = responseJson(200, sessions, "");
     return res.status(200).json(json);
