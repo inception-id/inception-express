@@ -26,6 +26,12 @@ import {
   WhatsappMessageType,
 } from "../whatsapp-messages/services";
 import { Pagination } from "../lib/types";
+import {
+  countCurrentMonthWhatsappNotifications,
+  createWhatsappNotification,
+  WhatsappEnvironment,
+} from "../whatsapp-notifications/services";
+import { ENV } from "../env";
 
 export const whatsappRouter = Router();
 
@@ -133,6 +139,7 @@ whatsappRouter.delete(
   },
 );
 
+// TODO: Add API key middleware
 whatsappRouter.post("/messages", async (req, res) => {
   let {
     whatsappPhoneId,
@@ -332,3 +339,82 @@ whatsappRouter.get(
     }
   },
 );
+
+// TODO: Add API key middleware
+whatsappRouter.post("/notifications", async (req, res) => {
+  let { targetPhoneNumber, message, environment } = req.body as {
+    targetPhoneNumber: string;
+    message: string;
+    environment: WhatsappEnvironment;
+  };
+
+  const path = req.path;
+  const endpoint = basePath + path;
+  logger.info(`${endpoint} Received request to send WhatsApp notification`);
+
+  if (!targetPhoneNumber || !message || !environment) {
+    const json = responseJson(400, null, "Missing required parameters");
+    return res.status(400).json(json);
+  }
+
+  if (!targetPhoneNumber.match(/^8\d*$/) || targetPhoneNumber.length < 9) {
+    // should start with 8 and contain only digits
+    const json = responseJson(
+      400,
+      null,
+      "Invalid targetPhoneNumber: Should start with 8, contain only digits, and be at least 9 characters long",
+    );
+    return res.status(400).json(json);
+  }
+
+  if (environment !== WhatsappEnvironment.Production.toString()) {
+    environment = WhatsappEnvironment.Development;
+  }
+
+  try {
+    // TODO: Count current month whatsapp notification
+    const notificationCount = await countCurrentMonthWhatsappNotifications("");
+    const notifEnvironment = notificationCount.find(
+      (msg) => msg.environment === environment,
+    );
+    if (environment === WhatsappEnvironment.Development) {
+      if (notifEnvironment && Number(notifEnvironment?.count) > 100) {
+        const json = responseJson(
+          429,
+          null,
+          `Rate limit exceeded for ${environment} Environment`,
+        );
+        return res.status(429).json(json);
+      }
+    } else {
+      // handle production here
+    }
+
+    const sentMessage = await sendWhatsapp(
+      String(ENV.INCEPTION_WHATSAPP_SESSION_ID),
+      targetPhoneNumber,
+      message,
+    );
+    const whatsappMessage = await createWhatsappNotification({
+      session_id: sentMessage.sessionId,
+      user_id: "", //Extract user id here
+      target_phone: sentMessage.phoneNumber,
+      text_message: sentMessage.message,
+      environment,
+    });
+    const json = responseJson(
+      201,
+      {
+        messageId: whatsappMessage[0].id,
+        targetPhoneNumber,
+        message,
+        environment,
+      },
+      "CREATED",
+    );
+    res.status(201).json(json);
+  } catch (err: any) {
+    const json = responseJson(500, null, "");
+    res.status(500).json(json);
+  }
+});
