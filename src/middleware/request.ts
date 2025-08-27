@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from "express";
 import { ENV } from "../env";
 import { responseJson } from "./response";
 import { logger } from "../lib/logger";
+import bcrypt from "bcrypt";
+import { findApiKey } from "../api-keys/services";
 
 const verifyAccessToken = async (
   accessToken: string,
@@ -54,6 +56,36 @@ export const accessTokenMiddleware = async (
       tokenVerification,
       tokenVerification.status,
     );
+    return res.status(403).json(jsonResponse);
+  }
+
+  // All good!
+  next();
+};
+
+export const publicApiKeyMiddleware = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  logger.info("Access token middleware");
+  const apiKeyId = req.header("x-client-id");
+  const apiKey = req.header("x-api-key");
+
+  if (!apiKeyId || !apiKey) {
+    const jsonResponse = responseJson(401, null, "Unauthorized");
+    return res.status(401).json(jsonResponse);
+  }
+
+  const dbApiKey = await findApiKey(apiKeyId);
+  if (!dbApiKey) {
+    const jsonResponse = responseJson(403, null, "Forbidden");
+    return res.status(403).json(jsonResponse);
+  }
+
+  const isValid = await bcrypt.compare(apiKey, dbApiKey[0].api_key);
+  if (!isValid) {
+    const jsonResponse = responseJson(403, null, "Forbidden");
     return res.status(403).json(jsonResponse);
   }
 
