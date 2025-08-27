@@ -1,11 +1,9 @@
 import { whatsappBasePath, whatsappRouter } from "../whatsapp/controller";
-import { accessTokenMiddleware } from "../middleware/request";
 import { logger } from "../lib/logger";
 import { responseJson } from "../middleware/response";
 import { decode, JwtPayload } from "jsonwebtoken";
 import { publicApiKeyMiddleware } from "../middleware/request";
 import {
-  countAllTimeWhatsappMessages,
   countCurrentMonthWhatsappMessage,
   countWhatsappMessages,
   createWhatsappMessage,
@@ -19,8 +17,12 @@ import {
 import { sendWhatsapp } from "../whatsapp/services";
 import { Pagination } from "../lib/types";
 import { User } from "../users/services";
+import { Request, Response } from "express";
 
-whatsappRouter.post("/messages", publicApiKeyMiddleware, async (req, res) => {
+export const sendWhatsappMessageController = async (
+  req: Request,
+  res: Response,
+) => {
   let {
     whatsappPhoneId,
     whatsappPhoneNumber,
@@ -134,9 +136,12 @@ whatsappRouter.post("/messages", publicApiKeyMiddleware, async (req, res) => {
     const json = responseJson(500, null, "");
     res.status(500).json(json);
   }
-});
+};
 
-whatsappRouter.get("/messages", accessTokenMiddleware, async (req, res) => {
+export const findWhatsappMessagesController = async (
+  req: Request,
+  res: Response,
+) => {
   try {
     const { page, perPage, environment } = req.query as {
       page?: string;
@@ -182,40 +187,4 @@ whatsappRouter.get("/messages", accessTokenMiddleware, async (req, res) => {
     const json = responseJson(500, null, "");
     res.status(500).json(json);
   }
-});
-
-whatsappRouter.get(
-  "/messages/count",
-  accessTokenMiddleware,
-  async (req, res) => {
-    try {
-      const { environment } = req.query as {
-        environment: WhatsappMessageType;
-      };
-      if (!environment) {
-        const json = responseJson(400, null, "Missing environment query");
-        return res.status(400).json(json);
-      }
-
-      if (
-        environment !== WhatsappMessageType.Development.toString() &&
-        environment !== WhatsappMessageType.Production.toString()
-      ) {
-        const json = responseJson(400, null, "Invalid environment");
-        return res.status(400).json(json);
-      }
-
-      const accessToken = req.header("x-access-token") as string;
-      const jwt = decode(accessToken) as JwtPayload & User;
-      const sessions = await findManyWhatsappSessions({ user_id: jwt.id });
-      const sessionIds = sessions.map((session) => session.id);
-      const count = await countAllTimeWhatsappMessages(sessionIds, environment);
-
-      const json = responseJson(200, count, "");
-      res.status(500).json(json);
-    } catch (err: any) {
-      const json = responseJson(500, null, "");
-      res.status(500).json(json);
-    }
-  },
-);
+};

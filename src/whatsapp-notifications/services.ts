@@ -59,3 +59,58 @@ export const countCurrentMonthWhatsappNotifications = async (
     throw error; // Do not return any default here or we lost our profit
   }
 };
+
+type FindManyWhatsappNotificationPayload = {
+  userId: string;
+  offset: number;
+  limit: number;
+  environment?: WhatsappEnvironment;
+};
+
+export const findManyWhatsappNotifications = async (
+  payload: FindManyWhatsappNotificationPayload,
+): Promise<WhatsappNotification[]> => {
+  logger.info("findWhatsappNotifications");
+  try {
+    if (payload.environment) {
+      return await pg(TABLES.WHATSAPP_NOTIFICATIONS)
+        .where("user_id", payload.userId)
+        .andWhere("environment", payload.environment)
+        .offset(payload.offset)
+        .limit(payload.limit)
+        .orderBy("created_at", "desc")
+        .returning("*");
+    }
+    return await pg(TABLES.WHATSAPP_NOTIFICATIONS)
+      .where("user_id", payload.userId)
+      .offset(payload.offset)
+      .limit(payload.limit)
+      .orderBy("created_at", "desc")
+      .returning("*");
+  } catch (error) {
+    logger.error("findWhatsapsNotifications", error);
+    return [];
+  }
+};
+
+export const countWhatsappNotifications = async (
+  payload: Pick<FindManyWhatsappNotificationPayload, "userId" | "environment">,
+): Promise<{ count: string }> => {
+  logger.info("countWhatsappNotifications");
+  try {
+    if (payload.environment) {
+      return (await pg(TABLES.WHATSAPP_NOTIFICATIONS)
+        .count("id")
+        .where("user_id", payload.userId)
+        .andWhere("environment", payload.environment)
+        .first()) as { count: string };
+    }
+    return (await pg(TABLES.WHATSAPP_NOTIFICATIONS)
+      .count("id")
+      .where("user_id", payload.userId)
+      .first()) as { count: string };
+  } catch (error) {
+    logger.error("countWhatsappNotifications", error);
+    throw error;
+  }
+};

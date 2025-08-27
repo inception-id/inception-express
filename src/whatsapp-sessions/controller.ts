@@ -1,3 +1,4 @@
+import { Request, Response } from "express";
 import { whatsappBasePath, whatsappRouter } from "../whatsapp/controller";
 import { accessTokenMiddleware } from "../middleware/request";
 import { logger } from "../lib/logger";
@@ -15,7 +16,10 @@ import {
   whatsappQrStore,
 } from "../whatsapp/services";
 
-whatsappRouter.post("/sessions", accessTokenMiddleware, async (req, res) => {
+export const createWhatsappSessionController = async (
+  req: Request,
+  res: Response,
+) => {
   const path = req.path;
   logger.info(
     `${whatsappBasePath + path} Received request to create WhatsApp session`,
@@ -72,9 +76,12 @@ whatsappRouter.post("/sessions", accessTokenMiddleware, async (req, res) => {
     const json = responseJson(500, null, "Internal server error");
     return res.status(500).json(json);
   }
-});
+};
 
-whatsappRouter.get("/sessions", accessTokenMiddleware, async (req, res) => {
+export const findWhatsappSessionsController = async (
+  req: Request,
+  res: Response,
+) => {
   const path = req.path;
   logger.info(
     `${whatsappBasePath + path} Received request to find WhatsApp sessions`,
@@ -95,28 +102,27 @@ whatsappRouter.get("/sessions", accessTokenMiddleware, async (req, res) => {
     const json = responseJson(500, null, "Internal server error");
     return res.status(500).json(json);
   }
-});
+};
 
-whatsappRouter.delete(
-  "/sessions/:sessionId",
-  accessTokenMiddleware,
-  async (req, res) => {
-    const path = req.path;
-    const params = req.params;
-    const endpoint = `${whatsappBasePath}${path}/${params.sessionId}`;
-    logger.info(`${endpoint} Received request to delete WhatsApp session`);
+export const deleteWhatsappSessionController = async (
+  req: Request,
+  res: Response,
+) => {
+  const path = req.path;
+  const params = req.params;
+  const endpoint = `${whatsappBasePath}${path}/${params.sessionId}`;
+  logger.info(`${endpoint} Received request to delete WhatsApp session`);
 
-    try {
-      const accessToken = req.header("x-access-token") as string;
-      const jwt = decode(accessToken) as JwtPayload & User;
-      const sessions = await deleteWhatsappSession(params.sessionId, jwt.id);
-      if (sessions) await destroyWhatsappClient(params.sessionId);
-      const json = responseJson(200, sessions, "");
-      return res.status(200).json(json);
-    } catch (err: any) {
-      logger.error(endpoint, err);
-      const json = responseJson(500, null, "Internal server error");
-      return res.status(500).json(json);
-    }
-  },
-);
+  try {
+    const accessToken = req.header("x-access-token") as string;
+    const jwt = decode(accessToken) as JwtPayload & User;
+    const sessions = await deleteWhatsappSession(params.sessionId, jwt.id);
+    if (sessions) await destroyWhatsappClient(params.sessionId);
+    const json = responseJson(200, sessions, "");
+    return res.status(200).json(json);
+  } catch (err: any) {
+    logger.error(endpoint, err);
+    const json = responseJson(500, null, "Internal server error");
+    return res.status(500).json(json);
+  }
+};
