@@ -127,7 +127,7 @@ export const findWhatsappNotificationsController = async (
     const jwt = decode(accessToken) as JwtPayload & User;
     const limit = perPage ? Number(perPage) : 100;
     const offset = page && Number(page) > 1 ? (Number(page) - 1) * limit : 0;
-    const messages = await findManyWhatsappNotifications({
+    const notifications = await findManyWhatsappNotifications({
       userId: jwt.id,
       offset,
       limit,
@@ -144,7 +144,7 @@ export const findWhatsappNotificationsController = async (
       totalPages: Number(count) > limit ? Math.round(Number(count) / limit) : 1,
     };
 
-    const json = responseJson(200, { messages, pagination }, "");
+    const json = responseJson(200, { notifications, pagination }, "");
     res.status(500).json(json);
   } catch (err: any) {
     const json = responseJson(500, null, "");

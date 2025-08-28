@@ -83,7 +83,7 @@ export const sendWhatsappMessageController = async (
       is_ready: true,
     });
     if (!whatsappSession) {
-      const json = responseJson(404, null, "Whatsapp id and number not found");
+      const json = responseJson(404, null, "Whatsapp id or number not found");
       return res.status(404).json(json);
     }
     const userSessions = await findManyWhatsappSessions({
