@@ -110,3 +110,18 @@ export const countWhatsappMessages = async (
     throw error;
   }
 };
+
+export const countAllTimeWhatsappMessages = async (sessionIds: string[]) => {
+  logger.info("countAllTimeWhatsappMessages");
+  return pg(TABLES.WHATSAPP_MESSAGES)
+    .select(
+      pg.raw("EXTRACT(YEAR FROM created_at) AS year"),
+      pg.raw("EXTRACT(MONTH FROM created_at) AS month"),
+      pg.raw("COUNT(id) AS count"),
+      pg.raw("message_type AS environment"),
+    )
+    .whereIn("session_id", sessionIds)
+    .groupByRaw("year, month, message_type")
+    .orderByRaw("year, month desc")
+    .returning("*");
+};

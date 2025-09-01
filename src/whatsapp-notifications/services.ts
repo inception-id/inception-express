@@ -114,3 +114,18 @@ export const countWhatsappNotifications = async (
     throw error;
   }
 };
+
+export const countAllTimeWhatsappNotifications = async (userId: string) => {
+  logger.info("countAllTimeWhatsappNotifications");
+  return pg(TABLES.WHATSAPP_NOTIFICATIONS)
+    .select(
+      pg.raw("EXTRACT(YEAR FROM created_at) AS year"),
+      pg.raw("EXTRACT(MONTH FROM created_at) AS month"),
+      pg.raw("COUNT(id) AS count"),
+      pg.raw("environment"),
+    )
+    .where("user_id", userId)
+    .groupByRaw("year, month, environment")
+    .orderByRaw("year, month desc")
+    .returning("*");
+};
