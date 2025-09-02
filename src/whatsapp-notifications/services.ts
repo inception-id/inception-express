@@ -16,6 +16,7 @@ export type WhatsappNotification = {
   target_phone: string;
   text_message: string | null;
   environment: WhatsappEnvironment;
+  country_code: string;
 };
 
 export const createWhatsappNotification = async (
@@ -25,39 +26,27 @@ export const createWhatsappNotification = async (
   >,
 ): Promise<WhatsappNotification[]> => {
   logger.info("createWhatsappNotification", payload);
-  try {
-    return await pg(TABLES.WHATSAPP_NOTIFICATIONS)
-      .insert(payload)
-      .returning("*");
-  } catch (error) {
-    logger.error("createWhatsappNotification", error);
-    throw error;
-  }
+  return await pg(TABLES.WHATSAPP_NOTIFICATIONS).insert(payload).returning("*");
 };
 
 export const countCurrentMonthWhatsappNotifications = async (
   userId: string,
 ): Promise<{ environment: WhatsappEnvironment; count: string }[]> => {
   logger.info("countCurrentMonthWhatsappNotification");
-  try {
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
 
-    const endOfMonth = new Date(startOfMonth);
-    endOfMonth.setMonth(endOfMonth.getMonth() + 1);
-    endOfMonth.setMilliseconds(-1);
+  const endOfMonth = new Date(startOfMonth);
+  endOfMonth.setMonth(endOfMonth.getMonth() + 1);
+  endOfMonth.setMilliseconds(-1);
 
-    return await pg(TABLES.WHATSAPP_NOTIFICATIONS)
-      .select("environment")
-      .count("environment as count")
-      .where("user_id", userId)
-      .andWhereBetween("created_at", [startOfMonth, endOfMonth])
-      .groupBy("environment");
-  } catch (error) {
-    logger.error("countCurrentMonthWhatsappNotification", error);
-    throw error; // Do not return any default here or we lost our profit
-  }
+  return await pg(TABLES.WHATSAPP_NOTIFICATIONS)
+    .select("environment")
+    .count("environment as count")
+    .where("user_id", userId)
+    .andWhereBetween("created_at", [startOfMonth, endOfMonth])
+    .groupBy("environment");
 };
 
 type FindManyWhatsappNotificationPayload = {
@@ -71,48 +60,38 @@ export const findManyWhatsappNotifications = async (
   payload: FindManyWhatsappNotificationPayload,
 ): Promise<WhatsappNotification[]> => {
   logger.info("findWhatsappNotifications");
-  try {
-    if (payload.environment) {
-      return await pg(TABLES.WHATSAPP_NOTIFICATIONS)
-        .where("user_id", payload.userId)
-        .andWhere("environment", payload.environment)
-        .offset(payload.offset)
-        .limit(payload.limit)
-        .orderBy("created_at", "desc")
-        .returning("*");
-    }
+  if (payload.environment) {
     return await pg(TABLES.WHATSAPP_NOTIFICATIONS)
       .where("user_id", payload.userId)
+      .andWhere("environment", payload.environment)
       .offset(payload.offset)
       .limit(payload.limit)
       .orderBy("created_at", "desc")
       .returning("*");
-  } catch (error) {
-    logger.error("findWhatsapsNotifications", error);
-    return [];
   }
+  return await pg(TABLES.WHATSAPP_NOTIFICATIONS)
+    .where("user_id", payload.userId)
+    .offset(payload.offset)
+    .limit(payload.limit)
+    .orderBy("created_at", "desc")
+    .returning("*");
 };
 
 export const countWhatsappNotifications = async (
   payload: Pick<FindManyWhatsappNotificationPayload, "userId" | "environment">,
 ): Promise<{ count: string }> => {
   logger.info("countWhatsappNotifications");
-  try {
-    if (payload.environment) {
-      return (await pg(TABLES.WHATSAPP_NOTIFICATIONS)
-        .count("id")
-        .where("user_id", payload.userId)
-        .andWhere("environment", payload.environment)
-        .first()) as { count: string };
-    }
+  if (payload.environment) {
     return (await pg(TABLES.WHATSAPP_NOTIFICATIONS)
       .count("id")
       .where("user_id", payload.userId)
+      .andWhere("environment", payload.environment)
       .first()) as { count: string };
-  } catch (error) {
-    logger.error("countWhatsappNotifications", error);
-    throw error;
   }
+  return (await pg(TABLES.WHATSAPP_NOTIFICATIONS)
+    .count("id")
+    .where("user_id", payload.userId)
+    .first()) as { count: string };
 };
 
 export const countAllTimeWhatsappNotifications = async (userId: string) => {

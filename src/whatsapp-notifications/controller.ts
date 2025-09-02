@@ -15,53 +15,47 @@ import { decode, JwtPayload } from "jsonwebtoken";
 import { User } from "../users/services";
 import { Pagination } from "../lib/types";
 import { Request, Response } from "express";
+import z from "zod";
+
+const sendWhatsappNotificationsSchema = z.object({
+  targetPhoneNumber: z
+    .string()
+    .min(1, "targetPhoneNumber can not be empty")
+    .regex(/^[0-9]+$/, "targetPhoneNumber must be a set of numbers"),
+  message: z.string().min(1, "message can not be empty"),
+  environment: z.enum(WhatsappEnvironment, "environment is missing or invalid"),
+  countryCode: z
+    .string()
+    .regex(/^\+[1-9][0-9]{0,3}$/)
+    .optional()
+    .default("+62"),
+});
 
 export const sendWhatsappNotificationsController = async (
   req: Request,
   res: Response,
 ) => {
-  let { targetPhoneNumber, message, environment } = req.body as {
-    targetPhoneNumber: string;
-    message: string;
-    environment: WhatsappEnvironment;
-  };
-
-  const path = req.path;
-  const endpoint = whatsappBasePath + path;
-  logger.info(`${endpoint} Received request to send WhatsApp notification`);
-
-  if (!targetPhoneNumber || !message || !environment) {
-    const json = responseJson(400, null, "Missing required parameters");
-    return res.status(400).json(json);
-  }
-
-  if (!targetPhoneNumber.match(/^8\d*$/) || targetPhoneNumber.length < 9) {
-    // should start with 8 and contain only digits
-    const json = responseJson(
-      400,
-      null,
-      "Invalid targetPhoneNumber: Should start with 8, contain only digits, and be at least 9 characters long",
-    );
-    return res.status(400).json(json);
-  }
-
-  if (environment !== WhatsappEnvironment.Production.toString()) {
-    environment = WhatsappEnvironment.Development;
-  }
+  logger.info(`sendWhatsappNotificationsController:`, req.body);
+  const { targetPhoneNumber, message, environment, countryCode } =
+    req.body satisfies z.infer<typeof sendWhatsappNotificationsSchema>;
 
   try {
-    const apiKeyId = req.header("x-client-id") as string;
+    sendWhatsappNotificationsSchema.parse(req.body);
 
+    const apiKeyId = req.header("x-client-id") as string;
     const dbApiKey = await findApiKey(apiKeyId);
     const userId = dbApiKey[0].user_id;
-
     const notificationCount =
       await countCurrentMonthWhatsappNotifications(userId);
     const notifEnvironment = notificationCount.find(
       (msg) => msg.environment === environment,
     );
+
     if (environment === WhatsappEnvironment.Development) {
-      if (notifEnvironment && Number(notifEnvironment?.count) > 100) {
+      if (
+        notifEnvironment &&
+        Number(notifEnvironment?.count) > ENV.DEVELOPMENT_MONTHLY_LIMIT
+      ) {
         const json = responseJson(
           429,
           null,
@@ -98,8 +92,13 @@ export const sendWhatsappNotificationsController = async (
     );
     res.status(201).json(json);
   } catch (err: any) {
+    if (err instanceof z.ZodError) {
+      const json = responseJson(400, null, err.issues[0].message);
+      return res.status(400).json(json);
+    }
+    logger.error("sendWhatsappNotificationsController:", err);
     const json = responseJson(500, null, "");
-    res.status(500).json(json);
+    return res.status(500).json(json);
   }
 };
 

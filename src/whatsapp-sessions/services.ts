@@ -17,18 +17,13 @@ export const createWhatsappSession = async (
   phone: string,
 ): Promise<WhatsappSession[]> => {
   logger.info("createWhatsappSession", { userId, phone });
-  try {
-    return await pg(TABLES.WHATSAPP_SESSIONS)
-      .insert({
-        user_id: userId,
-        phone,
-        is_ready: false,
-      })
-      .returning("*");
-  } catch (error) {
-    logger.error("createWhatsappSession", error);
-    return [];
-  }
+  return await pg(TABLES.WHATSAPP_SESSIONS)
+    .insert({
+      user_id: userId,
+      phone,
+      is_ready: false,
+    })
+    .returning("*");
 };
 
 export const updateWhatsappSession = async (
@@ -36,17 +31,12 @@ export const updateWhatsappSession = async (
   payload: Partial<Pick<WhatsappSession, "phone" | "is_ready">>,
 ): Promise<WhatsappSession[]> => {
   logger.info("updateWhatsappSession", { id, payload });
-  try {
-    return await pg(TABLES.WHATSAPP_SESSIONS)
-      .update({
-        ...payload,
-      })
-      .where({ id })
-      .returning("*");
-  } catch (error) {
-    logger.error("updateWhatsappSession", error);
-    return [];
-  }
+  return await pg(TABLES.WHATSAPP_SESSIONS)
+    .update({
+      ...payload,
+    })
+    .where({ id })
+    .returning("*");
 };
 
 type WhatsappSessionSearchKey = Partial<
@@ -57,30 +47,20 @@ export const findManyWhatsappSessions = async (
   searchKeys: WhatsappSessionSearchKey,
 ): Promise<WhatsappSession[]> => {
   logger.info("findWhatsappSessions", { ...searchKeys });
-  try {
-    return await pg(TABLES.WHATSAPP_SESSIONS)
-      .where({ ...searchKeys })
-      .orderBy("created_at", "desc")
-      .returning("*");
-  } catch (error) {
-    logger.error("findWhatsappSessions", error);
-    return [];
-  }
+  return await pg(TABLES.WHATSAPP_SESSIONS)
+    .where({ ...searchKeys })
+    .orderBy("created_at", "desc")
+    .returning("*");
 };
 
 export const findOneWhatsappSession = async (
   searchKeys: WhatsappSessionSearchKey,
 ): Promise<WhatsappSession | null> => {
   logger.info("findOneWhatsappSession", { ...searchKeys });
-  try {
-    return await pg(TABLES.WHATSAPP_SESSIONS)
-      .where({ ...searchKeys })
-      .orderBy("created_at", "desc")
-      .first();
-  } catch (error) {
-    logger.error("findOneWhatsappSession", error);
-    return null;
-  }
+  return await pg(TABLES.WHATSAPP_SESSIONS)
+    .where({ ...searchKeys })
+    .orderBy("created_at", "desc")
+    .first();
 };
 
 export const deleteWhatsappSession = async (
@@ -88,15 +68,10 @@ export const deleteWhatsappSession = async (
   userId: string,
 ): Promise<WhatsappSession[] | null> => {
   logger.info("deleteWhatsappSession", { sessionId, userId });
-  try {
-    return await pg(TABLES.WHATSAPP_SESSIONS)
-      .update({
-        is_deleted: true,
-      })
-      .where({ id: sessionId, user_id: userId })
-      .returning("*");
-  } catch (error) {
-    logger.error("deleteWhatsappSession", error);
-    return [];
-  }
+  return await pg(TABLES.WHATSAPP_SESSIONS)
+    .update({
+      is_deleted: true,
+    })
+    .where({ id: sessionId, user_id: userId })
+    .returning("*");
 };

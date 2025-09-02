@@ -6,7 +6,6 @@ import {
 } from "../whatsapp-sessions/services";
 import { logger } from "../lib/logger";
 import fs from "fs";
-import path from "path";
 
 export const whatsappQrStore = new Map<string, string>();
 export const whatsappClientStore = new Map<string, Client>();

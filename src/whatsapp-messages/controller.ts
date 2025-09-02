@@ -2,13 +2,11 @@ import { whatsappBasePath, whatsappRouter } from "../whatsapp/controller";
 import { logger } from "../lib/logger";
 import { responseJson } from "../middleware/response";
 import { decode, JwtPayload } from "jsonwebtoken";
-import { publicApiKeyMiddleware } from "../middleware/request";
 import {
   countCurrentMonthWhatsappMessage,
   countWhatsappMessages,
   createWhatsappMessage,
   findManyWhatsappMessages,
-  WhatsappMessageType,
 } from "./services";
 import {
   findManyWhatsappSessions,
@@ -18,63 +16,47 @@ import { sendWhatsapp } from "../whatsapp/services";
 import { Pagination } from "../lib/types";
 import { User } from "../users/services";
 import { Request, Response } from "express";
+import z from "zod";
+import { WhatsappEnvironment } from "../whatsapp-notifications/services";
+import { ENV } from "../env";
+
+const sendWhatsappMessageSchema = z.object({
+  whatsappPhoneId: z
+    .uuidv4("Invalid whatsappPhoneId")
+    .min(1, "whatsappPhoneId can not be empty"),
+  whatsappPhoneNumber: z
+    .string()
+    .min(1, "whatsappPhoneNumber can not be empty")
+    .regex(
+      /^8\d*$/,
+      "whatsappPhoneNumber must start with 8 followed with numbers",
+    ),
+  targetPhoneNumber: z
+    .string()
+    .min(1, "targetPhoneNumber can not be empty")
+    .regex(/^[0-9]+$/, "targetPhoneNumber must be a set of numbers"),
+  message: z.string().min(1, "message can not be empty"),
+  environment: z.enum(WhatsappEnvironment, "environment is missing or invalid"),
+  countryCode: z
+    .string()
+    .regex(/^\+[1-9][0-9]{0,3}$/)
+    .optional()
+    .default("+62"),
+});
 
 export const sendWhatsappMessageController = async (
   req: Request,
   res: Response,
 ) => {
-  let {
+  logger.info("sendWhatsappMessageController");
+  const {
     whatsappPhoneId,
     whatsappPhoneNumber,
     targetPhoneNumber,
     message,
     environment,
-  } = req.body as {
-    whatsappPhoneId: string;
-    whatsappPhoneNumber: string;
-    targetPhoneNumber: string;
-    message: string;
-    environment: WhatsappMessageType;
-  };
-
-  const path = req.path;
-  const endpoint = whatsappBasePath + path;
-  logger.info(`${endpoint} Received request to send WhatsApp message`);
-
-  if (
-    !whatsappPhoneId ||
-    !whatsappPhoneNumber ||
-    !targetPhoneNumber ||
-    !message ||
-    !environment
-  ) {
-    const json = responseJson(400, null, "Missing required parameters");
-    return res.status(400).json(json);
-  }
-
-  if (!whatsappPhoneNumber.match(/^8\d*$/) || whatsappPhoneNumber.length < 9) {
-    // should start with 8 and contain only digits
-    const json = responseJson(
-      400,
-      null,
-      "Invalid whatsappPhoneNumber: Should start with 8 and contain only digits",
-    );
-    return res.status(400).json(json);
-  }
-
-  if (!targetPhoneNumber.match(/^8\d*$/) || targetPhoneNumber.length < 9) {
-    // should start with 8 and contain only digits
-    const json = responseJson(
-      400,
-      null,
-      "Invalid targetPhoneNumber: Should start with 8, contain only digits, and be at least 9 characters long",
-    );
-    return res.status(400).json(json);
-  }
-
-  if (environment !== WhatsappMessageType.Production.toString()) {
-    environment = WhatsappMessageType.Development;
-  }
+    countryCode,
+  } = req.body satisfies z.infer<typeof sendWhatsappMessageSchema>;
 
   try {
     const whatsappSession = await findOneWhatsappSession({
@@ -83,9 +65,14 @@ export const sendWhatsappMessageController = async (
       is_ready: true,
     });
     if (!whatsappSession) {
-      const json = responseJson(404, null, "Whatsapp id or number not found");
+      const json = responseJson(
+        404,
+        null,
+        "whatsappPhoneId or whatsappPhoneNumber not found",
+      );
       return res.status(404).json(json);
     }
+
     const userSessions = await findManyWhatsappSessions({
       user_id: whatsappSession.user_id,
       is_ready: true,
@@ -95,8 +82,12 @@ export const sendWhatsappMessageController = async (
     const messageEnvironment = messageCount.find(
       (msg) => msg.message_type === environment,
     );
-    if (environment === WhatsappMessageType.Development) {
-      if (messageEnvironment && Number(messageEnvironment?.count) > 100) {
+
+    if (environment === WhatsappEnvironment.Development) {
+      if (
+        messageEnvironment &&
+        Number(messageEnvironment?.count) > ENV.DEVELOPMENT_MONTHLY_LIMIT
+      ) {
         const json = responseJson(
           429,
           null,
@@ -146,13 +137,13 @@ export const findWhatsappMessagesController = async (
     const { page, perPage, environment } = req.query as {
       page?: string;
       perPage?: string;
-      environment?: WhatsappMessageType;
+      environment?: WhatsappEnvironment;
     };
 
     if (
       environment &&
-      environment !== WhatsappMessageType.Development.toString() &&
-      environment !== WhatsappMessageType.Production.toString()
+      environment !== WhatsappEnvironment.Development.toString() &&
+      environment !== WhatsappEnvironment.Production.toString()
     ) {
       const json = responseJson(400, null, "Invalid environment");
       return res.status(400).json(json);
