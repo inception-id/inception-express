@@ -22,7 +22,12 @@ export type WhatsappNotification = {
 export const createWhatsappNotification = async (
   payload: Pick<
     WhatsappNotification,
-    "session_id" | "user_id" | "target_phone" | "text_message" | "environment"
+    | "session_id"
+    | "user_id"
+    | "target_phone"
+    | "text_message"
+    | "environment"
+    | "country_code"
   >,
 ): Promise<WhatsappNotification[]> => {
   logger.info("createWhatsappNotification", payload);

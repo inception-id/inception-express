@@ -83,9 +83,10 @@ export const sendWhatsapp = async (
   sessionId: string,
   phoneNumber: string,
   message: string,
+  countryCode?: string,
 ): Promise<{ sessionId: string; phoneNumber: string; message: string }> => {
   logger.info(`Sending WhatsApp message to ${phoneNumber}`);
-  const chatId = `62` + phoneNumber + "@c.us";
+  const chatId = (countryCode ?? "62") + phoneNumber + "@c.us";
 
   let clientStore = whatsappClientStore.get(sessionId);
   if (!clientStore) {
@@ -95,12 +96,20 @@ export const sendWhatsapp = async (
     await client.initialize();
 
     // When the client is ready, run this code (only once)
-    client.once("ready", async () => {
-      whatsappClientStore.set(sessionId, client);
-      const msg = await client.sendMessage(chatId, message);
+    return new Promise((resolve) => {
+      client.once("ready", async () => {
+        logger.info(`WhatsApp client ${sessionId} is ready`);
+        whatsappClientStore.set(sessionId, client);
+        const msg = await client.sendMessage(chatId, message);
+        resolve({ sessionId, phoneNumber, message });
+      });
+      client.once("auth_failure", async (err) => {
+        console.error("Auth failure", err);
+      });
+      client.once("disconnected", async (err) => {
+        console.error("Auth dc", err);
+      });
     });
-
-    return { sessionId, phoneNumber, message };
   } else {
     await clientStore.sendMessage(chatId, message);
     return { sessionId, phoneNumber, message };

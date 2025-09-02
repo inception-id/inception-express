@@ -26,7 +26,7 @@ const sendWhatsappNotificationsSchema = z.object({
   environment: z.enum(WhatsappEnvironment, "environment is missing or invalid"),
   countryCode: z
     .string()
-    .regex(/^\+[1-9][0-9]{0,3}$/)
+    .regex(/^[0-9]+$/, "countryCode must be a set of numbers")
     .optional()
     .default("+62"),
 });
@@ -71,6 +71,7 @@ export const sendWhatsappNotificationsController = async (
       String(ENV.INCEPTION_WHATSAPP_SESSION_ID),
       targetPhoneNumber,
       message,
+      countryCode,
     );
 
     const whatsappNotif = await createWhatsappNotification({
@@ -79,6 +80,7 @@ export const sendWhatsappNotificationsController = async (
       target_phone: sentMessage.phoneNumber,
       text_message: sentMessage.message,
       environment,
+      country_code: countryCode ? countryCode : "62",
     });
     const json = responseJson(
       201,

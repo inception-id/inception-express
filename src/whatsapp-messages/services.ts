@@ -17,7 +17,11 @@ export type WhatsappMessage = {
 export const createWhatsappMessage = async (
   payload: Pick<
     WhatsappMessage,
-    "session_id" | "target_phone" | "text_message" | "message_type"
+    | "session_id"
+    | "target_phone"
+    | "text_message"
+    | "message_type"
+    | "country_code"
   >,
 ): Promise<WhatsappMessage[]> => {
   logger.info("createWhatsappMessage", payload);
