@@ -89,6 +89,7 @@ export const sendWhatsappNotificationsController = async (
         targetPhoneNumber,
         message,
         environment,
+        countryCode: countryCode ? countryCode : "62",
       },
       "CREATED",
     );
