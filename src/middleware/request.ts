@@ -68,7 +68,7 @@ export const publicApiKeyMiddleware = async (
   res: Response,
   next: NextFunction,
 ) => {
-  logger.info("Access token middleware");
+  logger.info("API Key middleware");
   const apiKeyId = req.header("x-client-id");
   const apiKey = req.header("x-api-key");
 
@@ -78,7 +78,7 @@ export const publicApiKeyMiddleware = async (
   }
 
   const dbApiKey = await findApiKey(apiKeyId);
-  if (!dbApiKey) {
+  if (!dbApiKey || dbApiKey.length === 0) {
     const jsonResponse = responseJson(403, null, "Forbidden");
     return res.status(403).json(jsonResponse);
   }
