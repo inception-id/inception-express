@@ -6,6 +6,7 @@ import {
 } from "../whatsapp-sessions/services";
 import { logger } from "../lib/logger";
 import fs from "fs";
+import { count } from "console";
 
 export const whatsappQrStore = new Map<string, string>();
 export const whatsappClientStore = new Map<string, Client>();
@@ -86,32 +87,67 @@ export const sendWhatsapp = async (
   countryCode?: string,
 ): Promise<{ sessionId: string; phoneNumber: string; message: string }> => {
   logger.info(`Sending WhatsApp message to ${phoneNumber}`);
-  const chatId = (countryCode ?? "62") + phoneNumber + "@c.us";
+  const prefixCode = countryCode ? countryCode : "62";
+  const chatId = prefixCode + phoneNumber + "@c.us";
 
   let clientStore = whatsappClientStore.get(sessionId);
   if (!clientStore) {
     logger.info(`No client store for ${sessionId}, reinitializing...`);
     const client = new Client(createClientOptions(sessionId));
+    // client.once("ready", async () => {
+    //   whatsappClientStore.set(sessionId, clientStore);
+    //   const msg = await clientStore.sendMessage(chatId, message);
+    // });
+    await new Promise<void>((resolve, reject) => {
+      const cleanup = () => {
+        client.removeListener("ready", onReady);
+        client.removeListener("auth_failure", onAuthFailure);
+        client.removeListener("disconnected", onDisconnected);
+        client.removeListener("error", onError);
+      };
 
-    await client.initialize();
+      const onReady = () => {
+        cleanup();
+        resolve();
+        logger.info(`Client ${sessionId} is ready`);
+      };
+
+      const onAuthFailure = (msg?: any) => {
+        cleanup();
+        reject(new Error("Client auth failure: " + (msg ?? "unknown")));
+      };
+
+      const onDisconnected = (reason?: any) => {
+        cleanup();
+        reject(
+          new Error(
+            "Client disconnected before ready: " + (reason ?? "unknown"),
+          ),
+        );
+      };
+
+      const onError = (err: any) => {
+        cleanup();
+        reject(err instanceof Error ? err : new Error(String(err)));
+      };
+
+      client.once("ready", onReady);
+      client.once("auth_failure", onAuthFailure);
+      client.once("disconnected", onDisconnected);
+      client.once("error", onError);
+
+      // call initialize after listeners are attached (initialize returns void)
+      client.initialize();
+    });
 
     // When the client is ready, run this code (only once)
-    return new Promise((resolve) => {
-      client.once("ready", async () => {
-        logger.info(`WhatsApp client ${sessionId} is ready`);
-        whatsappClientStore.set(sessionId, client);
-        const msg = await client.sendMessage(chatId, message);
-        resolve({ sessionId, phoneNumber, message });
-      });
-      client.once("auth_failure", async (err) => {
-        console.error("Auth failure", err);
-      });
-      client.once("disconnected", async (err) => {
-        console.error("Auth dc", err);
-      });
-    });
+    whatsappClientStore.set(sessionId, client);
+    const msg = await client.sendMessage(chatId, message);
+    console.log("Message with reinit: ", msg);
+    return { sessionId, phoneNumber, message };
   } else {
-    await clientStore.sendMessage(chatId, message);
+    const msg = await clientStore.sendMessage(chatId, message);
+    console.log("Message without reinit: ", msg);
     return { sessionId, phoneNumber, message };
   }
 };
