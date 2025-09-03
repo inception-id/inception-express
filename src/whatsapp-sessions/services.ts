@@ -28,7 +28,7 @@ export const createWhatsappSession = async (
 
 export const updateWhatsappSession = async (
   id: string,
-  payload: Partial<Pick<WhatsappSession, "phone" | "is_ready">>,
+  payload: Partial<Pick<WhatsappSession, "phone" | "is_ready" | "is_deleted">>,
 ): Promise<WhatsappSession[]> => {
   logger.info("updateWhatsappSession", { id, payload });
   return await pg(TABLES.WHATSAPP_SESSIONS)

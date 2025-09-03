@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import { whatsappRouter } from "./whatsapp/controller";
+import { logger } from "./lib/logger";
 
 export const app = express();
 
@@ -14,5 +15,5 @@ app.get("/", async (req, res) => {
 
 const port = 5500;
 app.listen(port, () => {
-  console.log(`App listening on port ${port}`);
+  logger.info(`App listening on port ${port}`);
 });

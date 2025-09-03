@@ -23,32 +23,58 @@ const createClientOptions = (sessionId: string): ClientOptions => {
   };
 };
 
+const destroyClient = async (client: WAWebJS.Client, sessionId: string) => {
+  await client.destroy();
+  fs.rmSync(`.wwebjs_auth/session-${sessionId}`, {
+    recursive: true,
+    force: true,
+  });
+  fs.rmSync(`/app/.wwebjs_auth/session-${sessionId}`, {
+    recursive: true,
+    force: true,
+  });
+  return whatsappClientStore.delete(sessionId);
+};
+
 export const initWhatsappClient = async (
   sessionId: string,
 ): Promise<Client> => {
-  logger.info(`Initializing WhatsApp client ${sessionId}`);
+  logger.info(`initWhatsappClient: ${sessionId}`);
   const client = new Client(createClientOptions(sessionId));
 
-  // When the client received QR-Code
-  client.on("qr", (qr) => {
-    whatsappQrStore.set(sessionId, qr); // store QR code
-    logger.info(`QR code received for session ${sessionId}`);
+  await new Promise<void>((resolve, reject) => {
+    client.on("auth_failure", async (message) => {
+      await destroyClient(client, sessionId);
+      const msg = "Error trying to restore an existing session:" + message;
+      reject(new Error(msg));
+    });
+
+    client.on("authenticated", () => {
+      logger.info(`Authentication successful: ${sessionId}`);
+    });
+
+    client.on("disconnected", async (reason) => {
+      await destroyClient(client, sessionId);
+      const msg = `Client ${sessionId} has been disconnected: ${reason}`;
+      reject(new Error(msg));
+    });
+
+    client.on("qr", (qr) => {
+      logger.info("QR code received", sessionId);
+      whatsappQrStore.set(sessionId, qr); // store QR code
+      resolve();
+    });
+
+    client.once("ready", () => {
+      logger.info(`Client is ready:`, sessionId);
+      whatsappQrStore.delete(sessionId);
+      whatsappClientStore.set(sessionId, client);
+      updateWhatsappSession(sessionId, { is_ready: true });
+    });
+    client.initialize();
   });
 
-  // When the client is ready, run this code (only once)
-  client.once("ready", () => {
-    whatsappClientStore.set(sessionId, client);
-    updateWhatsappSession(sessionId, { is_ready: true });
-    logger.info(`WhatsApp client ${sessionId} is ready`);
-  });
-
-  client.on("disconnected", async (reason) => {
-    logger.info(`Client ${sessionId} was logged out`, reason); // Client was logged out Max qrcode retries reached
-    client.destroy();
-  });
-
-  await client.initialize();
-
+  // call initialize after listeners are attached (initialize returns void)
   return client;
 };
 
@@ -56,28 +82,41 @@ export const destroyWhatsappClient = async (
   sessionId: string,
 ): Promise<boolean> => {
   logger.info(`Destroying WhatsApp client ${sessionId}`);
+  await updateWhatsappSession(sessionId, { is_deleted: true });
+
   let clientStore = whatsappClientStore.get(sessionId);
   if (!clientStore) {
-    logger.info(`No client store for ${sessionId}, reinitializing...`);
+    logger.info(`Restoring session: ${sessionId}`);
     const client = new Client(createClientOptions(sessionId));
-    await client.initialize();
 
-    client.once("ready", async () => {
-      client.destroy();
-      fs.rmSync(`/app/.wwebjs_auth/session-${sessionId}`, {
-        recursive: true,
-        force: true,
+    await new Promise<void>((resolve) => {
+      client.on("auth_failure", async (message) => {
+        const msg = "Error trying to restore an existing session:" + message;
+        logger.info(msg);
+        resolve();
       });
+
+      client.on("authenticated", () => {
+        logger.info(`Authentication successful: ${sessionId}`);
+        resolve();
+      });
+
+      client.on("disconnected", async (reason) => {
+        const msg = `Client ${sessionId} has been disconnected: ${reason}`;
+        logger.info(msg);
+        resolve();
+      });
+
+      client.once("ready", () => {
+        logger.info(`Client is ready:`, sessionId);
+        resolve();
+      });
+      client.initialize();
     });
+    return await destroyClient(client, sessionId);
   } else {
-    clientStore.destroy();
-    fs.rmSync(`/app/.wwebjs_auth/session-${sessionId}`, {
-      recursive: true,
-      force: true,
-    });
-    whatsappClientStore.delete(sessionId);
+    return await destroyClient(clientStore, sessionId);
   }
-  return true;
 };
 
 export const sendWhatsapp = async (
@@ -86,68 +125,44 @@ export const sendWhatsapp = async (
   message: string,
   countryCode?: string,
 ): Promise<{ sessionId: string; phoneNumber: string; message: string }> => {
-  logger.info(`Sending WhatsApp message to ${phoneNumber}`);
+  logger.info("sendWhatsapp");
   const prefixCode = countryCode ? countryCode : "62";
   const chatId = prefixCode + phoneNumber + "@c.us";
 
   let clientStore = whatsappClientStore.get(sessionId);
   if (!clientStore) {
-    logger.info(`No client store for ${sessionId}, reinitializing...`);
+    logger.info(`initWhatsappClient: ${sessionId}`);
     const client = new Client(createClientOptions(sessionId));
-    // client.once("ready", async () => {
-    //   whatsappClientStore.set(sessionId, clientStore);
-    //   const msg = await clientStore.sendMessage(chatId, message);
-    // });
+
     await new Promise<void>((resolve, reject) => {
-      const cleanup = () => {
-        client.removeListener("ready", onReady);
-        client.removeListener("auth_failure", onAuthFailure);
-        client.removeListener("disconnected", onDisconnected);
-        client.removeListener("error", onError);
-      };
+      client.on("auth_failure", async (message) => {
+        await destroyClient(client, sessionId);
+        const msg = "Error trying to restore an existing session:" + message;
+        reject(new Error(msg));
+      });
 
-      const onReady = () => {
-        cleanup();
+      client.on("authenticated", () => {
+        logger.info(`Authentication successful: ${sessionId}`);
+      });
+
+      client.on("disconnected", async (reason) => {
+        await destroyClient(client, sessionId);
+        const msg = `Client ${sessionId} has been disconnected: ${reason}`;
+        reject(new Error(msg));
+      });
+
+      client.once("ready", () => {
+        logger.info(`Client is ready:`, sessionId);
+        whatsappClientStore.set(sessionId, client);
         resolve();
-        logger.info(`Client ${sessionId} is ready`);
-      };
-
-      const onAuthFailure = (msg?: any) => {
-        cleanup();
-        reject(new Error("Client auth failure: " + (msg ?? "unknown")));
-      };
-
-      const onDisconnected = (reason?: any) => {
-        cleanup();
-        reject(
-          new Error(
-            "Client disconnected before ready: " + (reason ?? "unknown"),
-          ),
-        );
-      };
-
-      const onError = (err: any) => {
-        cleanup();
-        reject(err instanceof Error ? err : new Error(String(err)));
-      };
-
-      client.once("ready", onReady);
-      client.once("auth_failure", onAuthFailure);
-      client.once("disconnected", onDisconnected);
-      client.once("error", onError);
-
-      // call initialize after listeners are attached (initialize returns void)
+      });
       client.initialize();
     });
 
-    // When the client is ready, run this code (only once)
-    whatsappClientStore.set(sessionId, client);
-    const msg = await client.sendMessage(chatId, message);
-    console.log("Message with reinit: ", msg);
+    await client.sendMessage(chatId, message);
     return { sessionId, phoneNumber, message };
   } else {
-    const msg = await clientStore.sendMessage(chatId, message);
-    console.log("Message without reinit: ", msg);
+    await clientStore.sendMessage(chatId, message);
     return { sessionId, phoneNumber, message };
   }
 };
