@@ -92,7 +92,11 @@ export const sendWhatsappNotificationsController = async (
     res.status(201).json(json);
   } catch (err: any) {
     if (err instanceof z.ZodError) {
-      const json = responseJson(400, null, err.issues[0].message);
+      const json = responseJson(
+        400,
+        null,
+        `${err.issues[0].path}: ${err.issues[0].message}`,
+      );
       return res.status(400).json(json);
     }
     logger.error("sendWhatsappNotificationsController:", err);

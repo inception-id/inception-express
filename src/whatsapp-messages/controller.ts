@@ -60,13 +60,14 @@ export const sendWhatsappMessageController = async (
   } = req.body satisfies z.infer<typeof sendWhatsappMessageSchema>;
 
   try {
+    sendWhatsappMessageSchema.parse(req.body);
+
     const whatsappSession = await findOneWhatsappSession({
       id: whatsappPhoneId,
       phone: whatsappPhoneNumber,
       is_ready: true,
       is_deleted: false,
     });
-    console.log("SESSION", whatsappSession);
 
     if (!whatsappSession) {
       const json = responseJson(
@@ -142,6 +143,14 @@ export const sendWhatsappMessageController = async (
     res.status(201).json(json);
   } catch (err: any) {
     logger.error("sendWhatsappMessage:", err);
+    if (err instanceof z.ZodError) {
+      const json = responseJson(
+        400,
+        null,
+        `${err.issues[0].path}: ${err.issues[0].message}`,
+      );
+      return res.status(400).json(json);
+    }
     const json = responseJson(500, null, "");
     res.status(500).json(json);
   }
