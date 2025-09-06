@@ -56,11 +56,7 @@ export const sendWhatsappNotificationsController = async (
         notifEnvironment &&
         Number(notifEnvironment?.count) > ENV.DEVELOPMENT_MONTHLY_LIMIT
       ) {
-        const json = responseJson(
-          429,
-          null,
-          `Rate limit exceeded for ${environment} Environment`,
-        );
+        const json = responseJson(429, null, `Too Many Requests`);
         return res.status(429).json(json);
       }
     } else {
@@ -91,7 +87,7 @@ export const sendWhatsappNotificationsController = async (
         environment,
         countryCode: countryCode ? countryCode : "62",
       },
-      "CREATED",
+      "Created",
     );
     res.status(201).json(json);
   } catch (err: any) {

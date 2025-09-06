@@ -24,14 +24,16 @@ export const createWhatsappMessage = async (
     | "country_code"
   >,
 ): Promise<WhatsappMessage[]> => {
-  logger.info("createWhatsappMessage", payload);
+  logger.info("createWhatsappMessage");
   return await pg(TABLES.WHATSAPP_MESSAGES).insert(payload).returning("*");
 };
 
 export const countCurrentMonthWhatsappMessage = async (
   sessionIds: string[],
-): Promise<{ message_type: WhatsappEnvironment; count: string }[]> => {
-  logger.info("countCurrentMonthWhatsappMessage", { sessionIds });
+  environment: WhatsappEnvironment,
+): Promise<{ environment: string; count: string }[]> => {
+  logger.info("countCurrentMonthWhatsappMessage");
+
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
@@ -39,11 +41,13 @@ export const countCurrentMonthWhatsappMessage = async (
   const endOfMonth = new Date(startOfMonth);
   endOfMonth.setMonth(endOfMonth.getMonth() + 1);
   endOfMonth.setMilliseconds(-1);
+
   return await pg(TABLES.WHATSAPP_MESSAGES)
-    .select("message_type")
+    .select("message_type as environment")
     .count("message_type as count")
     .whereIn("session_id", sessionIds)
     .andWhereBetween("created_at", [startOfMonth, endOfMonth])
+    .andWhere("message_type", environment)
     .groupBy("message_type");
 };
 
@@ -104,5 +108,23 @@ export const countAllTimeWhatsappMessages = async (sessionIds: string[]) => {
     .whereIn("session_id", sessionIds)
     .groupByRaw("year, month, message_type")
     .orderByRaw("year, month desc")
+    .returning("*");
+};
+
+export const countCurrentDayAndCurrentHourWhatsappMessages = async (
+  sessionIds: string[],
+): Promise<{ last_hour_count: string; today_count: string }[]> => {
+  logger.info("countCurrentDayAndCurrentHourWhatsappMessages");
+
+  return await pg(TABLES.WHATSAPP_MESSAGES)
+    .select(
+      pg.raw(
+        `COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 hour') AS last_hour_count`,
+      ),
+      pg.raw(
+        `COUNT(*) FILTER (WHERE created_at >= DATE_TRUNC('day', NOW())) AS today_count`,
+      ),
+    )
+    .whereIn("session_id", sessionIds)
     .returning("*");
 };

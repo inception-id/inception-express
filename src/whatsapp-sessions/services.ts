@@ -10,6 +10,8 @@ export type WhatsappSession = {
   phone: string;
   is_ready: boolean;
   is_deleted: boolean;
+  hourly_limit: number;
+  daily_limit: number;
 };
 
 export const createWhatsappSession = async (
