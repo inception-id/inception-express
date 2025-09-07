@@ -3,6 +3,7 @@ import { logger } from "../lib/logger";
 import { responseJson } from "../middleware/response";
 import { decode, JwtPayload } from "jsonwebtoken";
 import {
+  countCurrentDayAndCurrentHourWhatsappMessages,
   countCurrentMonthWhatsappMessage,
   countWhatsappMessages,
   createWhatsappMessage,
@@ -59,11 +60,15 @@ export const sendWhatsappMessageController = async (
   } = req.body satisfies z.infer<typeof sendWhatsappMessageSchema>;
 
   try {
+    sendWhatsappMessageSchema.parse(req.body);
+
     const whatsappSession = await findOneWhatsappSession({
       id: whatsappPhoneId,
       phone: whatsappPhoneNumber,
       is_ready: true,
+      is_deleted: false,
     });
+
     if (!whatsappSession) {
       const json = responseJson(
         404,
@@ -78,25 +83,35 @@ export const sendWhatsappMessageController = async (
       is_ready: true,
     });
     const sessionIds = userSessions.map((session) => session.id);
-    const messageCount = await countCurrentMonthWhatsappMessage(sessionIds);
-    const messageEnvironment = messageCount.find(
-      (msg) => msg.message_type === environment,
-    );
 
     if (environment === WhatsappEnvironment.Development) {
+      const messageCount = await countCurrentMonthWhatsappMessage(
+        sessionIds,
+        environment,
+      );
       if (
-        messageEnvironment &&
-        Number(messageEnvironment?.count) > ENV.DEVELOPMENT_MONTHLY_LIMIT
+        messageCount?.length > 0 &&
+        Number(messageCount[0].count) > ENV.DEVELOPMENT_MONTHLY_LIMIT
       ) {
-        const json = responseJson(
-          429,
-          null,
-          `Rate limit exceeded for ${environment} Environment`,
-        );
+        const json = responseJson(429, null, `Too Many Requests (DEVELOPMENT)`);
         return res.status(429).json(json);
       }
     } else {
-      // handle production here
+      const messageCount =
+        await countCurrentDayAndCurrentHourWhatsappMessages(sessionIds);
+      if (messageCount?.length > 0) {
+        if (
+          Number(messageCount[0].last_hour_count) > whatsappSession.hourly_limit
+        ) {
+          const json = responseJson(429, null, `Too Many Requests (HOURLY)`);
+          return res.status(429).json(json);
+        }
+        if (Number(messageCount[0].today_count) > whatsappSession.daily_limit) {
+          const json = responseJson(429, null, `Too Many Requests (DAILY)`);
+          return res.status(429).json(json);
+        }
+      }
+      // handle production payment here
     }
 
     const sentMessage = await sendWhatsapp(
@@ -120,14 +135,22 @@ export const sendWhatsappMessageController = async (
         whatsappPhoneNumber,
         targetPhoneNumber,
         message,
-        environment: environment,
+        environment,
         countryCode: countryCode ? countryCode : "62",
       },
-      "",
+      "Created",
     );
     res.status(201).json(json);
   } catch (err: any) {
     logger.error("sendWhatsappMessage:", err);
+    if (err instanceof z.ZodError) {
+      const json = responseJson(
+        400,
+        null,
+        `${err.issues[0].path}: ${err.issues[0].message}`,
+      );
+      return res.status(400).json(json);
+    }
     const json = responseJson(500, null, "");
     res.status(500).json(json);
   }

@@ -9,12 +9,15 @@ import {
   createWhatsappSession,
   deleteWhatsappSession,
   findManyWhatsappSessions,
+  findOneWhatsappSession,
+  updateWhatsappSession,
 } from "./services";
 import {
   destroyWhatsappClient,
   initWhatsappClient,
   whatsappQrStore,
 } from "../whatsapp/services";
+import z from "zod";
 
 export const createWhatsappSessionController = async (
   req: Request,
@@ -122,6 +125,56 @@ export const deleteWhatsappSessionController = async (
     return res.status(200).json(json);
   } catch (err: any) {
     logger.error(endpoint, err);
+    const json = responseJson(500, null, "Internal server error");
+    return res.status(500).json(json);
+  }
+};
+
+const updateWhatsapSessionSchema = z.object({
+  hourly_limit: z.number().min(1),
+  daily_limit: z.number().min(1),
+});
+
+export const updateWhatsappSessionController = async (
+  req: Request,
+  res: Response,
+) => {
+  logger.info("updateWhatsappSessionController");
+  const { sessionId } = req.params;
+  const { hourly_limit, daily_limit } = req.body satisfies z.infer<
+    typeof updateWhatsapSessionSchema
+  >;
+
+  try {
+    updateWhatsapSessionSchema.parse(req.body);
+
+    const accessToken = req.header("x-access-token") as string;
+    const jwt = decode(accessToken) as JwtPayload & User;
+    const session = await findOneWhatsappSession({
+      id: sessionId,
+      user_id: jwt.id,
+    });
+    if (!session) {
+      const json = responseJson(404, null, "Not Found");
+      return res.status(404).json(json);
+    }
+
+    const updatedSession = await updateWhatsappSession(sessionId, {
+      hourly_limit,
+      daily_limit,
+    });
+    const json = responseJson(200, updatedSession, "OK");
+    return res.status(200).json(json);
+  } catch (err: any) {
+    logger.error("updateWhatsappSessionController:", err);
+    if (err instanceof z.ZodError) {
+      const json = responseJson(
+        400,
+        null,
+        `${err.issues[0].path}: ${err.issues[0].message}`,
+      );
+      return res.status(400).json(json);
+    }
     const json = responseJson(500, null, "Internal server error");
     return res.status(500).json(json);
   }

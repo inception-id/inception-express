@@ -3,6 +3,7 @@ import {
   createWhatsappSessionController,
   deleteWhatsappSessionController,
   findWhatsappSessionsController,
+  updateWhatsappSessionController,
 } from "../whatsapp-sessions/controller";
 import {
   accessTokenMiddleware,
@@ -67,6 +68,12 @@ whatsappRouter.get(
   "/sessions",
   accessTokenMiddleware,
   findWhatsappSessionsController,
+);
+
+whatsappRouter.put(
+  "/sessions/:sessionId",
+  accessTokenMiddleware,
+  updateWhatsappSessionController,
 );
 
 whatsappRouter.delete(

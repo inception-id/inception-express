@@ -10,6 +10,8 @@ export type WhatsappSession = {
   phone: string;
   is_ready: boolean;
   is_deleted: boolean;
+  hourly_limit: number;
+  daily_limit: number;
 };
 
 export const createWhatsappSession = async (
@@ -28,7 +30,12 @@ export const createWhatsappSession = async (
 
 export const updateWhatsappSession = async (
   id: string,
-  payload: Partial<Pick<WhatsappSession, "phone" | "is_ready" | "is_deleted">>,
+  payload: Partial<
+    Pick<
+      WhatsappSession,
+      "phone" | "is_ready" | "is_deleted" | "hourly_limit" | "daily_limit"
+    >
+  >,
 ): Promise<WhatsappSession[]> => {
   logger.info("updateWhatsappSession", { id, payload });
   return await pg(TABLES.WHATSAPP_SESSIONS)
