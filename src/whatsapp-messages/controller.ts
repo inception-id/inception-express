@@ -124,7 +124,7 @@ export const sendWhatsappMessageController = async (
       session_id: sentMessage.sessionId,
       target_phone: sentMessage.phoneNumber,
       text_message: sentMessage.message,
-      message_type: environment,
+      environment,
       country_code: countryCode ? countryCode : "62",
     });
     const json = responseJson(
