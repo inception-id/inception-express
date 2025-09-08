@@ -9,7 +9,7 @@ export type WhatsappMessage = {
   created_at: string;
   updated_at: string;
   target_phone: string;
-  message_type: WhatsappEnvironment;
+  environment: WhatsappEnvironment;
   text_message: string | null;
   country_code: string;
 };
@@ -20,7 +20,7 @@ export const createWhatsappMessage = async (
     | "session_id"
     | "target_phone"
     | "text_message"
-    | "message_type"
+    | "environment"
     | "country_code"
   >,
 ): Promise<WhatsappMessage[]> => {
@@ -43,12 +43,12 @@ export const countCurrentMonthWhatsappMessage = async (
   endOfMonth.setMilliseconds(-1);
 
   return await pg(TABLES.WHATSAPP_MESSAGES)
-    .select("message_type as environment")
-    .count("message_type as count")
+    .select("environment")
+    .count("environment as count")
     .whereIn("session_id", sessionIds)
     .andWhereBetween("created_at", [startOfMonth, endOfMonth])
-    .andWhere("message_type", environment)
-    .groupBy("message_type");
+    .andWhere("environment", environment)
+    .groupBy("environment");
 };
 
 type FindManyWhatsappMessagesPayload = {
@@ -65,7 +65,7 @@ export const findManyWhatsappMessages = async (
   if (payload.environment) {
     return await pg(TABLES.WHATSAPP_MESSAGES)
       .whereIn("session_id", payload.sessionIds)
-      .andWhere("message_type", payload.environment)
+      .andWhere("environment", payload.environment)
       .offset(payload.offset)
       .limit(payload.limit)
       .orderBy("created_at", "desc")
@@ -87,7 +87,7 @@ export const countWhatsappMessages = async (
     return (await pg(TABLES.WHATSAPP_MESSAGES)
       .count("id")
       .whereIn("session_id", payload.sessionIds)
-      .andWhere("message_type", payload.environment)
+      .andWhere("environment", payload.environment)
       .first()) as { count: string };
   }
   return (await pg(TABLES.WHATSAPP_MESSAGES)
@@ -103,10 +103,10 @@ export const countAllTimeWhatsappMessages = async (sessionIds: string[]) => {
       pg.raw("EXTRACT(YEAR FROM created_at) AS year"),
       pg.raw("EXTRACT(MONTH FROM created_at) AS month"),
       pg.raw("COUNT(id) AS count"),
-      pg.raw("message_type AS environment"),
+      pg.raw("environment"),
     )
     .whereIn("session_id", sessionIds)
-    .groupByRaw("year, month, message_type")
+    .groupByRaw("year, month, environment")
     .orderByRaw("year, month desc")
     .returning("*");
 };
