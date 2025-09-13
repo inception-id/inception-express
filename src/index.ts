@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import { whatsappRouter } from "./whatsapp/controller";
 import { logger } from "./lib/logger";
+import { runWhatsappScheduler } from "./whatsapp/scheduler";
 
 export const app = express();
 
