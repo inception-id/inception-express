@@ -70,6 +70,17 @@ export const findOneWhatsappSession = async (
     .first();
 };
 
+export const findManyWhatsappSessionsBySessionIds = async (
+  sessionIds: string[],
+): Promise<WhatsappSession[]> => {
+  logger.info("findManyWhatsappSessionsBySessionIds");
+  return await pg(TABLES.WHATSAPP_SESSIONS)
+    .whereIn("id", sessionIds)
+    .andWhere("is_deleted", false)
+    .orderBy("created_at", "desc")
+    .returning("*");
+};
+
 export const deleteWhatsappSession = async (
   sessionId: string,
   userId: string,

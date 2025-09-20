@@ -11,6 +11,7 @@ import {
 } from "../middleware/request";
 import {
   findWhatsappMessagesController,
+  sendBatchWhatsappMessageController,
   sendWhatsappMessageController,
 } from "../whatsapp-messages/controller";
 import {
@@ -87,6 +88,11 @@ whatsappRouter.post(
   "/messages",
   publicApiKeyMiddleware,
   sendWhatsappMessageController,
+);
+whatsappRouter.post(
+  "/messages/batch",
+  publicApiKeyMiddleware,
+  sendBatchWhatsappMessageController,
 );
 whatsappRouter.get(
   "/messages",

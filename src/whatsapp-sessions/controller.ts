@@ -71,9 +71,14 @@ export const createWhatsappSessionController = async (
       return;
     }
     const client = await initWhatsappClient(session[0].id);
-    const qr = whatsappQrStore.get(session[0].id);
-    const json = responseJson(201, { qr }, "");
-    return res.status(201).json(json);
+    if (client) {
+      const qr = whatsappQrStore.get(session[0].id);
+      const json = responseJson(201, { qr }, "");
+      return res.status(201).json(json);
+    } else {
+      const json = responseJson(500, null, "Internal server error");
+      return res.status(500).json(json);
+    }
   } catch (err: any) {
     logger.error(whatsappBasePath + path, err);
     const json = responseJson(500, null, "Internal server error");

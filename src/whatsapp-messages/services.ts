@@ -1,7 +1,10 @@
 import { pg } from "../db/pg";
 import { TABLES } from "../db/tables";
 import { logger } from "../lib/logger";
-import { WhatsappEnvironment } from "../whatsapp-notifications/services";
+import {
+  WhatsappEnvironment,
+  WhatsappStatus,
+} from "../whatsapp-notifications/services";
 
 export type WhatsappMessage = {
   id: string;
@@ -12,17 +15,20 @@ export type WhatsappMessage = {
   environment: WhatsappEnvironment;
   text_message: string | null;
   country_code: string;
+  status: WhatsappStatus;
 };
 
+type CreateWhatsappMessagePayload = Pick<
+  WhatsappMessage,
+  | "session_id"
+  | "target_phone"
+  | "text_message"
+  | "environment"
+  | "country_code"
+>;
+
 export const createWhatsappMessage = async (
-  payload: Pick<
-    WhatsappMessage,
-    | "session_id"
-    | "target_phone"
-    | "text_message"
-    | "environment"
-    | "country_code"
-  >,
+  payload: CreateWhatsappMessagePayload | CreateWhatsappMessagePayload[],
 ): Promise<WhatsappMessage[]> => {
   logger.info("createWhatsappMessage");
   return await pg(TABLES.WHATSAPP_MESSAGES).insert(payload).returning("*");

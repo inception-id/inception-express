@@ -11,6 +11,7 @@ import {
 } from "./services";
 import {
   findManyWhatsappSessions,
+  findManyWhatsappSessionsBySessionIds,
   findOneWhatsappSession,
 } from "../whatsapp-sessions/services";
 import { sendWhatsapp } from "../whatsapp/services";
@@ -18,7 +19,10 @@ import { Pagination } from "../lib/types";
 import { User } from "../users/services";
 import { Request, Response } from "express";
 import z from "zod";
-import { WhatsappEnvironment } from "../whatsapp-notifications/services";
+import {
+  WhatsappEnvironment,
+  WhatsappStatus,
+} from "../whatsapp-notifications/services";
 import { ENV } from "../env";
 
 const sendWhatsappMessageSchema = z.object({
@@ -202,6 +206,73 @@ export const findWhatsappMessagesController = async (
     const json = responseJson(200, { messages, pagination }, "");
     res.status(500).json(json);
   } catch (err: any) {
+    const json = responseJson(500, null, "");
+    res.status(500).json(json);
+  }
+};
+
+const sendBatchWhatsappMessageSchema = z.array(sendWhatsappMessageSchema);
+
+export const sendBatchWhatsappMessageController = async (
+  req: Request,
+  res: Response,
+) => {
+  logger.info("sendBatchWhatsappMessageController");
+  const batchMessages = req.body satisfies z.infer<
+    typeof sendBatchWhatsappMessageSchema
+  >;
+
+  try {
+    sendBatchWhatsappMessageSchema.parse(req.body);
+    const phoneIds: string[] = [];
+    for (const message of batchMessages) {
+      if (!phoneIds.includes(message.whatsappPhoneId)) {
+        phoneIds.push(message.whatsappPhoneId);
+      }
+    }
+    const sessions = await findManyWhatsappSessionsBySessionIds(phoneIds);
+    if (phoneIds.length !== sessions.length) {
+      const json = responseJson(
+        400,
+        {
+          receivedPhoneIds: phoneIds,
+          availablePhoneIds: sessions.map((session) => session.id),
+        },
+        "Invalid whatsappPhoneId",
+      );
+      return res.status(400).json(json);
+    }
+
+    const messages = batchMessages.map(
+      (message: z.infer<typeof sendWhatsappMessageSchema>) => ({
+        session_id: message.whatsappPhoneId,
+        target_phone: message.whatsappPhoneNumber,
+        text_message: message.message,
+        environment: WhatsappEnvironment.Production,
+        country_code: message.countryCode ? message.countryCode : "62",
+        status: WhatsappStatus.Pending,
+      }),
+    );
+
+    const whatsappMessage = await createWhatsappMessage(messages);
+    const json = responseJson(
+      200,
+      {
+        count: whatsappMessage.length,
+      },
+      "OK",
+    );
+    return res.status(200).json(json);
+  } catch (err: any) {
+    logger.error("sendBatchWhatsappMessage:", err);
+    if (err instanceof z.ZodError) {
+      const json = responseJson(
+        400,
+        null,
+        `${err.issues[0].path}: ${err.issues[0].message}`,
+      );
+      return res.status(400).json(json);
+    }
     const json = responseJson(500, null, "");
     res.status(500).json(json);
   }

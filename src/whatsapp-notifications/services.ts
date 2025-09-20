@@ -7,6 +7,11 @@ export enum WhatsappEnvironment {
   Production = "PRODUCTION",
 }
 
+export enum WhatsappStatus {
+  Pending = "PENDING",
+  Delivered = "DELIVERED",
+}
+
 export type WhatsappNotification = {
   id: string;
   session_id: string;
