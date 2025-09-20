@@ -124,45 +124,56 @@ export const sendWhatsapp = async (
   phoneNumber: string,
   message: string,
   countryCode?: string,
-): Promise<{ sessionId: string; phoneNumber: string; message: string }> => {
-  logger.info("sendWhatsapp");
-  const prefixCode = countryCode ? countryCode : "62";
-  const chatId = prefixCode + phoneNumber + "@c.us";
+): Promise<WAWebJS.Message | null> => {
+  logger.info("[sendWhatsapp]");
+  try {
+    const prefixCode = countryCode ? countryCode : "62";
+    const chatId = prefixCode + phoneNumber + "@c.us";
+    const clientStore = whatsappClientStore.get(sessionId);
 
-  let clientStore = whatsappClientStore.get(sessionId);
-  if (!clientStore) {
-    logger.info(`initWhatsappClient: ${sessionId}`);
-    const client = new Client(createClientOptions(sessionId));
+    if (!clientStore) {
+      logger.info(`[sendWhatsapp] Initializing client ${sessionId}`);
+      const client = new Client(createClientOptions(sessionId));
 
-    await new Promise<void>((resolve, reject) => {
-      client.on("auth_failure", async (message) => {
-        await destroyClient(client, sessionId);
-        const msg = "Error trying to restore an existing session:" + message;
-        reject(new Error(msg));
+      const isInitialized = await new Promise<boolean>((resolve, reject) => {
+        client.on("auth_failure", async (message) => {
+          logger.error(`[sendWhatsapp] auth_failure: ${message}`);
+          const destroyed = await destroyClient(client, sessionId);
+          reject(destroyed);
+        });
+
+        client.on("authenticated", () => {
+          logger.info(`[sendWhatsapp] authenticated: ${sessionId}`);
+        });
+
+        client.on("disconnected", async (reason) => {
+          logger.error(`[sendWhatsapp] disconnected: ${message}`);
+          const destroyed = await destroyClient(client, sessionId);
+          reject(destroyed);
+        });
+
+        client.on("qr", (qr) => {
+          logger.info("QR code received", sessionId);
+          whatsappQrStore.set(sessionId, qr); // store QR code
+        });
+
+        client.once("ready", () => {
+          logger.info(`[sendWhatsapp] ready: ${sessionId}`);
+          whatsappClientStore.set(sessionId, client);
+          resolve(true);
+        });
+        client.initialize();
       });
 
-      client.on("authenticated", () => {
-        logger.info(`Authentication successful: ${sessionId}`);
-      });
-
-      client.on("disconnected", async (reason) => {
-        await destroyClient(client, sessionId);
-        const msg = `Client ${sessionId} has been disconnected: ${reason}`;
-        reject(new Error(msg));
-      });
-
-      client.once("ready", () => {
-        logger.info(`Client is ready:`, sessionId);
-        whatsappClientStore.set(sessionId, client);
-        resolve();
-      });
-      client.initialize();
-    });
-
-    await client.sendMessage(chatId, message);
-    return { sessionId, phoneNumber, message };
-  } else {
-    await clientStore.sendMessage(chatId, message);
-    return { sessionId, phoneNumber, message };
+      if (isInitialized) {
+        return await client.sendMessage(chatId, message);
+      }
+      return null;
+    } else {
+      return await clientStore.sendMessage(chatId, message);
+    }
+  } catch (err) {
+    logger.error("[sendWhatsapp]", err);
+    return null;
   }
 };

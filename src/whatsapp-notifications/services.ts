@@ -10,6 +10,7 @@ export enum WhatsappEnvironment {
 export enum WhatsappStatus {
   Pending = "PENDING",
   Delivered = "DELIVERED",
+  Failed = "FAILED",
 }
 
 export type WhatsappNotification = {
@@ -89,6 +90,15 @@ export const findManyWhatsappNotifications = async (
     .where("user_id", payload.userId)
     .offset(payload.offset)
     .limit(payload.limit)
+    .orderBy("created_at", "desc")
+    .returning("*");
+};
+
+type FindAllParams = Pick<WhatsappNotification, "status">;
+
+export const findManyWaNotifications = async (params: FindAllParams) => {
+  return await pg(TABLES.WHATSAPP_NOTIFICATIONS)
+    .where({ ...params })
     .orderBy("created_at", "desc")
     .returning("*");
 };

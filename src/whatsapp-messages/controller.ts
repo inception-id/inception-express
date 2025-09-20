@@ -125,40 +125,25 @@ export const sendWhatsappMessageController = async (
       message,
       countryCode,
     );
-    const whatsappMessage = await createWhatsappMessage({
-      session_id: sentMessage.sessionId,
-      target_phone: sentMessage.phoneNumber,
-      text_message: sentMessage.message,
-      environment,
-      country_code: countryCode ? countryCode : "62",
-      status: WhatsappStatus.Delivered,
-    });
-    const json = responseJson(
-      201,
-      {
-        messageId: whatsappMessage[0].id,
-        whatsappPhoneId,
-        whatsappPhoneNumber,
-        targetPhoneNumber,
-        message,
+
+    if (sentMessage?.id) {
+      const whatsappMessage = await createWhatsappMessage({
+        session_id: whatsappSession.id,
+        target_phone: targetPhoneNumber,
+        text_message: message,
         environment,
-        countryCode: countryCode ? countryCode : "62",
-      },
-      "Created",
-    );
-    res.status(201).json(json);
-  } catch (err: any) {
-    logger.error("sendWhatsappMessage:", err);
-    if (err instanceof z.ZodError) {
-      const json = responseJson(
-        400,
-        null,
-        `${err.issues[0].path}: ${err.issues[0].message}`,
-      );
-      return res.status(400).json(json);
+        country_code: countryCode ? countryCode : "62",
+        status: WhatsappStatus.Delivered,
+      });
+      const json = responseJson(201, whatsappMessage[0], "Created");
+      res.status(201).json(json);
+    } else {
+      const json = responseJson(500, null, "");
+      res.status(500).json(json);
     }
-    const json = responseJson(500, null, "");
-    res.status(500).json(json);
+  } catch (err: any) {
+    logger.error("[sendWhatsappMessage]", err);
+    return errorHandler(err, res);
   }
 };
 

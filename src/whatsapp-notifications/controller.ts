@@ -71,28 +71,22 @@ export const sendWhatsappNotificationsController = async (
       message,
       countryCode,
     );
-
-    const whatsappNotif = await createWhatsappNotification({
-      session_id: String(ENV.INCEPTION_WHATSAPP_SESSION_ID),
-      user_id: userId,
-      target_phone: sentMessage.phoneNumber,
-      text_message: sentMessage.message,
-      environment,
-      country_code: countryCode ? countryCode : "62",
-      status: WhatsappStatus.Delivered,
-    });
-    const json = responseJson(
-      201,
-      {
-        notificationId: whatsappNotif[0].id,
-        targetPhoneNumber,
-        message,
+    if (sentMessage?.id) {
+      const whatsappNotif = await createWhatsappNotification({
+        session_id: String(ENV.INCEPTION_WHATSAPP_SESSION_ID),
+        user_id: userId,
+        target_phone: targetPhoneNumber,
+        text_message: message,
         environment,
-        countryCode: countryCode ? countryCode : "62",
-      },
-      "Created",
-    );
-    res.status(201).json(json);
+        country_code: countryCode ? countryCode : "62",
+        status: WhatsappStatus.Delivered,
+      });
+      const json = responseJson(201, whatsappNotif[0], "Created");
+      res.status(201).json(json);
+    } else {
+      const json = responseJson(500, null, "");
+      res.status(500).json(json);
+    }
   } catch (err: any) {
     logger.error("[sendWhatsappNotificationsController]", err);
     return errorHandler(err, res);

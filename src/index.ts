@@ -3,6 +3,7 @@ import cors from "cors";
 import { whatsappRouter } from "./whatsapp/controller";
 import { logger } from "./lib/logger";
 import { runWhatsappScheduler } from "./whatsapp/scheduler";
+import { scheduleWaNotif } from "./whatsapp-notifications/schedule";
 
 export const app = express();
 
@@ -15,6 +16,7 @@ app.get("/", async (req, res) => {
 });
 
 const port = 5500;
-app.listen(port, () => {
+app.listen(port, async () => {
   logger.info(`App listening on port ${port}`);
+  await scheduleWaNotif();
 });
