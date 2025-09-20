@@ -96,10 +96,25 @@ export const findManyWhatsappNotifications = async (
 
 type FindAllParams = Pick<WhatsappNotification, "status">;
 
-export const findManyWaNotifications = async (params: FindAllParams) => {
+export const findManyWaNotifications = async (
+  params: FindAllParams,
+): Promise<WhatsappNotification[]> => {
   return await pg(TABLES.WHATSAPP_NOTIFICATIONS)
     .where({ ...params })
     .orderBy("created_at", "desc")
+    .returning("*");
+};
+
+type UpdateFilterParams = Pick<WhatsappNotification, "id">;
+type UpdateParams = Pick<WhatsappNotification, "status">;
+
+export const updateWaNotifications = async (
+  filter: UpdateFilterParams,
+  params: FindAllParams,
+): Promise<WhatsappNotification[]> => {
+  return await pg(TABLES.WHATSAPP_NOTIFICATIONS)
+    .where({ ...filter })
+    .update({ ...params })
     .returning("*");
 };
 
