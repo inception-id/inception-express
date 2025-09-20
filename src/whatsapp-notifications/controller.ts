@@ -81,7 +81,15 @@ export const sendWhatsappNotificationsController = async (
         country_code: countryCode ? countryCode : "62",
         status: WhatsappStatus.Delivered,
       });
-      const json = responseJson(201, whatsappNotif[0], "Created");
+      const response = {
+        id: whatsappNotif[0].id,
+        target_phone: whatsappNotif[0].target_phone,
+        text_message: whatsappNotif[0].text_message,
+        environment: whatsappNotif[0].environment,
+        country_code: whatsappNotif[0].country_code,
+        status: whatsappNotif[0].status,
+      };
+      const json = responseJson(201, response, "Created");
       res.status(201).json(json);
     } else {
       const json = responseJson(500, null, "");
