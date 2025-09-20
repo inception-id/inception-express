@@ -16,6 +16,7 @@ import {
 } from "../whatsapp-messages/controller";
 import {
   findWhatsappNotificationsController,
+  sendBatchWhatsappNotificationsController,
   sendWhatsappNotificationsController,
 } from "../whatsapp-notifications/controller";
 import { logger } from "../lib/logger";
@@ -105,6 +106,12 @@ whatsappRouter.post(
   "/notifications",
   publicApiKeyMiddleware,
   sendWhatsappNotificationsController,
+);
+
+whatsappRouter.post(
+  "/notifications/batch",
+  publicApiKeyMiddleware,
+  sendBatchWhatsappNotificationsController,
 );
 
 whatsappRouter.get(

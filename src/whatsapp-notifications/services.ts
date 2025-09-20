@@ -22,20 +22,26 @@ export type WhatsappNotification = {
   text_message: string | null;
   environment: WhatsappEnvironment;
   country_code: string;
+  status?: WhatsappStatus;
 };
 
+type CreateWhatsappNotificationPayload = Pick<
+  WhatsappNotification,
+  | "session_id"
+  | "user_id"
+  | "target_phone"
+  | "text_message"
+  | "environment"
+  | "country_code"
+  | "status"
+>;
+
 export const createWhatsappNotification = async (
-  payload: Pick<
-    WhatsappNotification,
-    | "session_id"
-    | "user_id"
-    | "target_phone"
-    | "text_message"
-    | "environment"
-    | "country_code"
-  >,
+  payload:
+    | CreateWhatsappNotificationPayload
+    | CreateWhatsappNotificationPayload[],
 ): Promise<WhatsappNotification[]> => {
-  logger.info("createWhatsappNotification", payload);
+  logger.info("[createWhatsappNotification]");
   return await pg(TABLES.WHATSAPP_NOTIFICATIONS).insert(payload).returning("*");
 };
 

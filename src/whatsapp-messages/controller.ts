@@ -24,6 +24,7 @@ import {
   WhatsappStatus,
 } from "../whatsapp-notifications/services";
 import { ENV } from "../env";
+import { errorHandler } from "../lib/error-handler";
 
 const sendWhatsappMessageSchema = z.object({
   whatsappPhoneId: z
@@ -130,6 +131,7 @@ export const sendWhatsappMessageController = async (
       text_message: sentMessage.message,
       environment,
       country_code: countryCode ? countryCode : "62",
+      status: WhatsappStatus.Delivered,
     });
     const json = responseJson(
       201,
@@ -264,16 +266,7 @@ export const sendBatchWhatsappMessageController = async (
     );
     return res.status(200).json(json);
   } catch (err: any) {
-    logger.error("sendBatchWhatsappMessage:", err);
-    if (err instanceof z.ZodError) {
-      const json = responseJson(
-        400,
-        null,
-        `${err.issues[0].path}: ${err.issues[0].message}`,
-      );
-      return res.status(400).json(json);
-    }
-    const json = responseJson(500, null, "");
-    res.status(500).json(json);
+    logger.error("[sendBatchWhatsappMessageController]", err);
+    return errorHandler(err, res);
   }
 };

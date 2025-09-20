@@ -8,6 +8,7 @@ import {
   createWhatsappNotification,
   findManyWhatsappNotifications,
   WhatsappEnvironment,
+  WhatsappStatus,
 } from "./services";
 import { findApiKey } from "../api-keys/services";
 import { ENV } from "../env";
@@ -16,6 +17,7 @@ import { User } from "../users/services";
 import { Pagination } from "../lib/types";
 import { Request, Response } from "express";
 import z from "zod";
+import { errorHandler } from "../lib/error-handler";
 
 const sendWhatsappNotificationsSchema = z.object({
   targetPhoneNumber: z
@@ -35,7 +37,7 @@ export const sendWhatsappNotificationsController = async (
   req: Request,
   res: Response,
 ) => {
-  logger.info(`sendWhatsappNotificationsController:`, req.body);
+  logger.info(`[sendWhatsappNotificationsController]`, req.body);
   const { targetPhoneNumber, message, environment, countryCode } =
     req.body satisfies z.infer<typeof sendWhatsappNotificationsSchema>;
 
@@ -71,12 +73,13 @@ export const sendWhatsappNotificationsController = async (
     );
 
     const whatsappNotif = await createWhatsappNotification({
-      session_id: sentMessage.sessionId,
+      session_id: String(ENV.INCEPTION_WHATSAPP_SESSION_ID),
       user_id: userId,
       target_phone: sentMessage.phoneNumber,
       text_message: sentMessage.message,
       environment,
       country_code: countryCode ? countryCode : "62",
+      status: WhatsappStatus.Delivered,
     });
     const json = responseJson(
       201,
@@ -91,17 +94,54 @@ export const sendWhatsappNotificationsController = async (
     );
     res.status(201).json(json);
   } catch (err: any) {
-    if (err instanceof z.ZodError) {
-      const json = responseJson(
-        400,
-        null,
-        `${err.issues[0].path}: ${err.issues[0].message}`,
-      );
-      return res.status(400).json(json);
-    }
-    logger.error("sendWhatsappNotificationsController:", err);
-    const json = responseJson(500, null, "");
-    return res.status(500).json(json);
+    logger.error("[sendWhatsappNotificationsController]", err);
+    return errorHandler(err, res);
+  }
+};
+
+const sendBatchWhatsappNotificationsSchema = z.array(
+  sendWhatsappNotificationsSchema,
+);
+
+export const sendBatchWhatsappNotificationsController = async (
+  req: Request,
+  res: Response,
+) => {
+  logger.info(`[sendWhatsappNotificationsController]`, req.body);
+  const batchNotifications = req.body satisfies z.infer<
+    typeof sendBatchWhatsappNotificationsSchema
+  >;
+
+  try {
+    sendBatchWhatsappNotificationsSchema.parse(req.body);
+
+    const apiKeyId = req.header("x-client-id") as string;
+    const dbApiKey = await findApiKey(apiKeyId);
+    const userId = dbApiKey[0].user_id;
+    const notifications = batchNotifications.map(
+      (notif: z.infer<typeof sendWhatsappNotificationsSchema>) => ({
+        session_id: ENV.INCEPTION_WHATSAPP_SESSION_ID,
+        user_id: userId,
+        target_phone: notif.targetPhoneNumber,
+        text_message: notif.message,
+        environment: WhatsappEnvironment.Production,
+        country_code: notif.countryCode ? notif.countryCode : "62",
+        status: WhatsappStatus.Pending,
+      }),
+    );
+    const savedNotifications = await createWhatsappNotification(notifications);
+
+    const json = responseJson(
+      200,
+      {
+        count: savedNotifications.length,
+      },
+      "OK",
+    );
+    res.status(200).json(json);
+  } catch (err: any) {
+    logger.error("[sendWhatsappNotificationsController]", err);
+    return errorHandler(err, res);
   }
 };
 

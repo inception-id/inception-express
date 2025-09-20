@@ -9,7 +9,7 @@ const verifyAccessToken = async (
   accessToken: string,
 ): Promise<{ status: string }> => {
   try {
-    logger.info("Verifying access token");
+    logger.info("[verifyAccessToken]");
     if (!ENV.SUPERTOKENS_CONNECTION_URI || !ENV.SUPERTOKENS_API_KEY) {
       throw new Error("SUPERTOKENS ENV are not set");
     }
@@ -31,7 +31,7 @@ const verifyAccessToken = async (
     );
     return await res.json();
   } catch (error) {
-    logger.error("Error verifying access token", error);
+    logger.error("[verifyAccessToken]", error);
     throw error;
   }
 };
@@ -41,7 +41,7 @@ export const accessTokenMiddleware = async (
   res: Response,
   next: NextFunction,
 ) => {
-  logger.info("Access token middleware");
+  logger.info("[accessTokenMiddleware]");
   const accessToken = req.header("x-access-token");
 
   if (!accessToken) {
@@ -68,7 +68,7 @@ export const publicApiKeyMiddleware = async (
   res: Response,
   next: NextFunction,
 ) => {
-  logger.info("API Key middleware");
+  logger.info("[publicApiKeyMiddleware]");
   const apiKeyId = req.header("x-client-id");
   const apiKey = req.header("x-api-key");
 

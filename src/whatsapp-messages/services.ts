@@ -15,7 +15,7 @@ export type WhatsappMessage = {
   environment: WhatsappEnvironment;
   text_message: string | null;
   country_code: string;
-  status: WhatsappStatus;
+  status?: WhatsappStatus;
 };
 
 type CreateWhatsappMessagePayload = Pick<
@@ -25,6 +25,7 @@ type CreateWhatsappMessagePayload = Pick<
   | "text_message"
   | "environment"
   | "country_code"
+  | "status"
 >;
 
 export const createWhatsappMessage = async (
