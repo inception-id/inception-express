@@ -1,10 +1,8 @@
 import { pg } from "../db/pg";
 import { TABLES } from "../db/tables";
 import { logger } from "../lib/logger";
-import {
-  WhatsappEnvironment,
-  WhatsappStatus,
-} from "../whatsapp-notifications/services";
+import { WhatsappEnvironment } from "../lib/types";
+import { WhatsappStatus } from "../lib/types";
 
 export type WhatsappMessage = {
   id: string;

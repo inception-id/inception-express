@@ -1,27 +1,26 @@
 import { ENV } from "../env";
 import { logger } from "../lib/logger";
 import { sendWhatsapp } from "../whatsapp/services";
-import {
-  findManyWaNotifications,
-  updateWaNotifications,
-  WhatsappStatus,
-} from "./services";
+import { services } from "./services";
+import { WhatsappStatus } from "../lib/types";
 
-export const scheduleWaNotif = async () => {
-  logger.info(`[scheduleWaNotif] Starting @ ${new Date().toLocaleString()}`);
+const send = async () => {
+  logger.info(
+    `[wa-notif-scheduleSend] Starting @ ${new Date().toLocaleString()}`,
+  );
   try {
-    let pendingNotifications = await findManyWaNotifications({
+    let pendingNotifications = await services.findMany({
       status: WhatsappStatus.Pending,
     });
 
     const notifCount = pendingNotifications.length;
     if (notifCount === 0) {
-      logger.info("[scheduleWaNotif] No pending notifications");
+      logger.info("[wa-notif-scheduleSend] No pending notifications");
       return;
     }
 
     // Send max 30 messages per hour
-    logger.info(`[scheduleWaNotif] ${notifCount} pending notifications`);
+    logger.info(`[wa-notif-scheduleSend] ${notifCount} pending notifications`);
     if (notifCount > 30) {
       pendingNotifications = pendingNotifications.slice(0, 5);
     }
@@ -37,7 +36,7 @@ export const scheduleWaNotif = async () => {
         notification.country_code,
       );
 
-      await updateWaNotifications(
+      await services.update(
         {
           id: notification.id,
         },
@@ -55,8 +54,14 @@ export const scheduleWaNotif = async () => {
       }
     }
 
-    logger.info(`[scheduleWaNotif] ${successCount} sent, ${failCount} failed`);
+    logger.info(
+      `[wa-notif-scheduleSend] ${successCount} sent, ${failCount} failed`,
+    );
   } catch (err) {
-    logger.error("[scheduleWaNotif]", err);
+    logger.error("[wa-notif-scheduleSend]", err);
   }
+};
+
+export const schedule = {
+  send,
 };

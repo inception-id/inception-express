@@ -19,12 +19,9 @@ import { Pagination } from "../lib/types";
 import { User } from "../users/services";
 import { Request, Response } from "express";
 import z from "zod";
-import {
-  WhatsappEnvironment,
-  WhatsappStatus,
-} from "../whatsapp-notifications/services";
 import { ENV } from "../env";
 import { errorHandler } from "../lib/error-handler";
+import { WhatsappStatus, WhatsappEnvironment } from "../lib/types";
 
 const sendWhatsappMessageSchema = z.object({
   whatsappPhoneId: z

@@ -2,15 +2,6 @@ import { whatsappBasePath, whatsappRouter } from "../whatsapp/controller";
 import { logger } from "../lib/logger";
 import { responseJson } from "../middleware/response";
 import { sendWhatsapp } from "../whatsapp/services";
-import {
-  countCurrentMonthWhatsappNotifications,
-  countWhatsappNotifications,
-  createWhatsappNotification,
-  findManyWhatsappNotificationsWithPagination,
-  WhatsappEnvironment,
-  WhatsappNotification,
-  WhatsappStatus,
-} from "./services";
 import { findApiKey } from "../api-keys/services";
 import { ENV } from "../env";
 import { decode, JwtPayload } from "jsonwebtoken";
@@ -19,8 +10,10 @@ import { Pagination } from "../lib/types";
 import { Request, Response } from "express";
 import z from "zod";
 import { errorHandler } from "../lib/error-handler";
+import { WhatsappStatus, WhatsappEnvironment } from "../lib/types";
+import { services, type WhatsappNotification } from "./services";
 
-const SendWaNotifSchema = z.object({
+const SendSchema = z.object({
   targetPhoneNumber: z
     .string()
     .min(1, "targetPhoneNumber can not be empty")
@@ -33,29 +26,26 @@ const SendWaNotifSchema = z.object({
     .default("+62"),
 });
 
-export const sendWhatsappNotificationsController = async (
-  req: Request,
-  res: Response,
-) => {
-  logger.info(`[sendWhatsappNotificationsController]`, req.body);
+export const send = async (req: Request, res: Response) => {
+  logger.info(`[wa-notif-controller-send]`);
   const { targetPhoneNumber, message, countryCode } =
-    req.body satisfies z.infer<typeof SendWaNotifSchema>;
+    req.body satisfies z.infer<typeof SendSchema>;
 
   try {
-    SendWaNotifSchema.parse(req.body);
+    SendSchema.parse(req.body);
 
     const apiKeyId = req.header("x-client-id") as string;
 
     const dbApiKey = await findApiKey(apiKeyId);
     const userId = dbApiKey[0].user_id;
 
-    const notifCount = await countCurrentMonthWhatsappNotifications(userId);
+    const notifCount = await services.countCurrentMonth(userId);
     const environment =
       Number(notifCount.count) > ENV.DEVELOPMENT_MONTHLY_LIMIT
         ? WhatsappEnvironment.Production
         : WhatsappEnvironment.Development;
 
-    const pendingNotifs = await findManyWhatsappNotificationsWithPagination(
+    const pendingNotifs = await services.findMany(
       {
         status: WhatsappStatus.Pending,
       },
@@ -64,7 +54,7 @@ export const sendWhatsappNotificationsController = async (
     );
 
     if (pendingNotifs.length > 1) {
-      const whatsappNotif = await createWhatsappNotification({
+      const whatsappNotif = await services.create({
         session_id: String(ENV.INCEPTION_WHATSAPP_SESSION_ID),
         user_id: userId,
         target_phone: targetPhoneNumber,
@@ -93,7 +83,7 @@ export const sendWhatsappNotificationsController = async (
         countryCode,
       );
       if (sentMessage?.id) {
-        const whatsappNotif = await createWhatsappNotification({
+        const whatsappNotif = await services.create({
           session_id: String(ENV.INCEPTION_WHATSAPP_SESSION_ID),
           user_id: userId,
           target_phone: targetPhoneNumber,
@@ -119,30 +109,25 @@ export const sendWhatsappNotificationsController = async (
       return res.status(500).json(json);
     }
   } catch (err: any) {
-    logger.error("[sendWhatsappNotificationsController]", err);
+    logger.error(`[wa-notif-controller-send]`, err);
     return errorHandler(err, res);
   }
 };
 
-const SendBatchWaNotifSchema = z.array(SendWaNotifSchema);
+const SendBatchSchema = z.array(SendSchema);
 
-export const sendBatchWhatsappNotificationsController = async (
-  req: Request,
-  res: Response,
-) => {
-  logger.info(`[sendWhatsappNotificationsController]`, req.body);
-  const batchNotifications = req.body satisfies z.infer<
-    typeof SendBatchWaNotifSchema
-  >;
+const sendBatch = async (req: Request, res: Response) => {
+  logger.info(`[wa-notif-controller-sendBatch]`);
+  const batchNotifications = req.body satisfies z.infer<typeof SendBatchSchema>;
 
   try {
-    SendBatchWaNotifSchema.parse(req.body);
+    SendBatchSchema.parse(req.body);
 
     const apiKeyId = req.header("x-client-id") as string;
     const dbApiKey = await findApiKey(apiKeyId);
     const userId = dbApiKey[0].user_id;
     const notifications = batchNotifications.map(
-      (notif: z.infer<typeof SendWaNotifSchema>) => ({
+      (notif: z.infer<typeof SendSchema>) => ({
         session_id: ENV.INCEPTION_WHATSAPP_SESSION_ID,
         user_id: userId,
         target_phone: notif.targetPhoneNumber,
@@ -152,7 +137,7 @@ export const sendBatchWhatsappNotificationsController = async (
         status: WhatsappStatus.Pending,
       }),
     );
-    const savedNotifications = await createWhatsappNotification(notifications);
+    const savedNotifications = await services.create(notifications);
 
     const json = responseJson(
       200,
@@ -163,15 +148,13 @@ export const sendBatchWhatsappNotificationsController = async (
     );
     res.status(200).json(json);
   } catch (err: any) {
-    logger.error("[sendWhatsappNotificationsController]", err);
+    logger.error(`[wa-notif-controller-sendBatch]`, err);
     return errorHandler(err, res);
   }
 };
 
-export const findWhatsappNotificationsController = async (
-  req: Request,
-  res: Response,
-) => {
+const findMany = async (req: Request, res: Response) => {
+  logger.info(`[wa-notif-controller-findMany]`);
   try {
     const { page, perPage, environment } = req.query as {
       page?: string;
@@ -192,7 +175,7 @@ export const findWhatsappNotificationsController = async (
     const jwt = decode(accessToken) as JwtPayload & User;
     const limit = perPage ? Number(perPage) : 100;
     const offset = page && Number(page) > 1 ? (Number(page) - 1) * limit : 0;
-    const notifications = await findManyWhatsappNotificationsWithPagination(
+    const notifications = await services.findMany(
       {
         user_id: jwt.id,
         environment,
@@ -200,7 +183,7 @@ export const findWhatsappNotificationsController = async (
       offset,
       limit,
     );
-    const { count } = await countWhatsappNotifications({
+    const { count } = await services.count({
       user_id: jwt.id,
       environment,
     });
@@ -214,7 +197,9 @@ export const findWhatsappNotificationsController = async (
     const json = responseJson(200, { notifications, pagination }, "");
     res.status(500).json(json);
   } catch (err: any) {
-    const json = responseJson(500, null, "");
-    res.status(500).json(json);
+    logger.error(`[wa-notif-controller-findMany]`, err);
+    return errorHandler(err, res);
   }
 };
+
+export const controller = { send, sendBatch, findMany };
