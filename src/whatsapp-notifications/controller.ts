@@ -1,7 +1,5 @@
-import { whatsappBasePath, whatsappRouter } from "../whatsapp/controller";
 import { logger } from "../lib/logger";
 import { responseJson } from "../middleware/response";
-import { sendWhatsapp } from "../whatsapp/services";
 import { findApiKey } from "../api-keys/services";
 import { ENV } from "../env";
 import { decode, JwtPayload } from "jsonwebtoken";
@@ -12,6 +10,7 @@ import z from "zod";
 import { errorHandler } from "../lib/error-handler";
 import { WhatsappStatus, WhatsappEnvironment } from "../lib/types";
 import { services, type WhatsappNotification } from "./services";
+import whatsapp from "../whatsapp";
 
 const SendSchema = z.object({
   targetPhoneNumber: z
@@ -76,7 +75,7 @@ export const send = async (req: Request, res: Response) => {
       const json = responseJson(201, response, WhatsappStatus.Pending);
       res.status(201).json(json);
     } else {
-      const sentMessage = await sendWhatsapp(
+      const sentMessage = await whatsapp.services.sendMessage(
         String(ENV.INCEPTION_WHATSAPP_SESSION_ID),
         targetPhoneNumber,
         message,

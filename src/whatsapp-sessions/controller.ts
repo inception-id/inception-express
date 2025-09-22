@@ -3,13 +3,9 @@ import { logger } from "../lib/logger";
 import { responseJson } from "../middleware/response";
 import { decode, JwtPayload } from "jsonwebtoken";
 import { findUserById, User } from "../users/services";
-import {
-  destroyWhatsappClient,
-  initWhatsappClient,
-  whatsappQrStore,
-} from "../whatsapp/services";
 import { services } from "./services";
 import z from "zod";
+import whatsapp from "../whatsapp";
 
 const create = async (req: Request, res: Response) => {
   logger.info("wa-session-controller-create");
@@ -56,9 +52,9 @@ const create = async (req: Request, res: Response) => {
       return res.status(500).json(json);
       return;
     }
-    const client = await initWhatsappClient(session[0].id);
+    const client = await whatsapp.services.initClient(session[0].id);
     if (client) {
-      const qr = whatsappQrStore.get(session[0].id);
+      const qr = whatsapp.services.getClientQr(session[0].id);
       const json = responseJson(201, { qr }, "");
       return res.status(201).json(json);
     } else {
@@ -106,7 +102,7 @@ const remove = async (req: Request, res: Response) => {
       },
       { is_deleted: true },
     );
-    if (sessions) await destroyWhatsappClient(params.sessionId);
+    if (sessions) await whatsapp.services.destroyClient(params.sessionId);
     const json = responseJson(200, sessions, "");
     return res.status(200).json(json);
   } catch (err: any) {

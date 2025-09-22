@@ -1,8 +1,8 @@
 import { ENV } from "../env";
 import { logger } from "../lib/logger";
-import { sendWhatsapp } from "../whatsapp/services";
 import { services } from "./services";
 import { WhatsappStatus } from "../lib/types";
+import whatsapp from "../whatsapp";
 
 const send = async () => {
   logger.info(
@@ -29,7 +29,7 @@ const send = async () => {
     let failCount = 0;
     for (let i = 0; i < pendingNotifications.length; i++) {
       const notification = pendingNotifications[i];
-      const sentNotification = await sendWhatsapp(
+      const sentNotification = await whatsapp.services.sendMessage(
         String(ENV.INCEPTION_WHATSAPP_SESSION_ID),
         notification.target_phone,
         notification.text_message || "",
