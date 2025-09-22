@@ -1,12 +1,8 @@
 import WAWebJS, { Client, ClientOptions, LocalAuth } from "whatsapp-web.js";
 import qrCodeTerminal from "qrcode-terminal";
-import {
-  createWhatsappSession,
-  updateWhatsappSession,
-} from "../whatsapp-sessions/services";
 import { logger } from "../lib/logger";
 import fs from "fs";
-import { count } from "console";
+import whatsappSessions from "../whatsapp-sessions";
 
 export const whatsappQrStore = new Map<string, string>();
 export const whatsappClientStore = new Map<string, Client>();
@@ -71,7 +67,7 @@ export const initWhatsappClient = async (
       logger.info(`Client is ready:`, sessionId);
       whatsappQrStore.delete(sessionId);
       whatsappClientStore.set(sessionId, client);
-      updateWhatsappSession(sessionId, { is_ready: true });
+      whatsappSessions.services.update({ id: sessionId }, { is_ready: true });
       resolve(true);
     });
     client.initialize();
@@ -88,7 +84,10 @@ export const destroyWhatsappClient = async (
   sessionId: string,
 ): Promise<boolean> => {
   logger.info(`[destroyWhatsappClient] ${sessionId}`);
-  await updateWhatsappSession(sessionId, { is_deleted: true });
+  await whatsappSessions.services.update(
+    { id: sessionId },
+    { is_deleted: true },
+  );
   let clientStore = whatsappClientStore.get(sessionId);
   if (!clientStore) {
     const client = await initWhatsappClient(sessionId);

@@ -3,11 +3,6 @@ import { logger } from "../lib/logger";
 import { responseJson } from "../middleware/response";
 import { decode, JwtPayload } from "jsonwebtoken";
 import { services } from "./services";
-import {
-  findManyWhatsappSessions,
-  findManyWhatsappSessionsBySessionIds,
-  findOneWhatsappSession,
-} from "../whatsapp-sessions/services";
 import { sendWhatsapp } from "../whatsapp/services";
 import { Pagination } from "../lib/types";
 import { User } from "../users/services";
@@ -16,6 +11,7 @@ import z from "zod";
 import { ENV } from "../env";
 import { errorHandler } from "../lib/error-handler";
 import { WhatsappStatus, WhatsappEnvironment } from "../lib/types";
+import whatsappSessions from "../whatsapp-sessions";
 
 const SendWhatsappMessageSchema = z.object({
   whatsappPhoneId: z
@@ -55,7 +51,7 @@ export const send = async (req: Request, res: Response) => {
   try {
     SendWhatsappMessageSchema.parse(req.body);
 
-    const whatsappSession = await findOneWhatsappSession({
+    const whatsappSession = await whatsappSessions.services.find({
       id: whatsappPhoneId,
       phone: whatsappPhoneNumber,
       is_ready: true,
@@ -71,7 +67,7 @@ export const send = async (req: Request, res: Response) => {
       return res.status(404).json(json);
     }
 
-    const userSessions = await findManyWhatsappSessions({
+    const userSessions = await whatsappSessions.services.findMany({
       user_id: whatsappSession.user_id,
       is_ready: true,
     });
@@ -131,7 +127,9 @@ export const findMany = async (req: Request, res: Response) => {
 
     const accessToken = req.header("x-access-token") as string;
     const jwt = decode(accessToken) as JwtPayload & User;
-    const sessions = await findManyWhatsappSessions({ user_id: jwt.id });
+    const sessions = await whatsappSessions.services.findMany({
+      user_id: jwt.id,
+    });
     const sessionIds = sessions.map((session) => session.id);
     const limit = perPage ? Number(perPage) : 100;
     const offset = page && Number(page) > 1 ? (Number(page) - 1) * limit : 0;
@@ -178,7 +176,10 @@ export const sendBatch = async (req: Request, res: Response) => {
         phoneIds.push(message.whatsappPhoneId);
       }
     }
-    const sessions = await findManyWhatsappSessionsBySessionIds(phoneIds);
+    const sessions = await whatsappSessions.services.findManyBySessionIds(
+      phoneIds,
+      {},
+    );
     if (phoneIds.length !== sessions.length) {
       const json = responseJson(
         400,

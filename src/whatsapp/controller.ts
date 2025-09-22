@@ -1,11 +1,5 @@
 import { Request, Response, Router } from "express";
 import {
-  createWhatsappSessionController,
-  deleteWhatsappSessionController,
-  findWhatsappSessionsController,
-  updateWhatsappSessionController,
-} from "../whatsapp-sessions/controller";
-import {
   accessTokenMiddleware,
   publicApiKeyMiddleware,
 } from "../middleware/request";
@@ -13,9 +7,9 @@ import { logger } from "../lib/logger";
 import { responseJson } from "../middleware/response";
 import { decode, JwtPayload } from "jsonwebtoken";
 import { User } from "../users/services";
-import { findManyWhatsappSessions } from "../whatsapp-sessions/services";
 import waNotif from "../whatsapp-notifications";
 import waMessage from "../whatsapp-messages";
+import waSessions from "../whatsapp-sessions";
 
 export const whatsappRouter = Router();
 export const whatsappBasePath = "/whatsapp";
@@ -29,7 +23,7 @@ export const countAllTimeMessagesAndNotificationsController = async (
   try {
     const accessToken = req.header("x-access-token") as string;
     const jwt = decode(accessToken) as JwtPayload & User;
-    const sessions = await findManyWhatsappSessions({ user_id: jwt.id });
+    const sessions = await waSessions.services.findMany({ user_id: jwt.id });
     const sessionIds = sessions.map((session) => session.id);
     const messages = await waMessage.services.countAllTime(sessionIds);
     const notifications = await waNotif.services.countAllTime(jwt.id);
@@ -53,25 +47,19 @@ whatsappRouter.get(
 whatsappRouter.post(
   "/sessions",
   accessTokenMiddleware,
-  createWhatsappSessionController,
+  waSessions.controller.create,
 );
 
 whatsappRouter.get(
   "/sessions",
   accessTokenMiddleware,
-  findWhatsappSessionsController,
-);
-
-whatsappRouter.put(
-  "/sessions/:sessionId",
-  accessTokenMiddleware,
-  updateWhatsappSessionController,
+  waSessions.controller.findMany,
 );
 
 whatsappRouter.delete(
   "/sessions/:sessionId",
   accessTokenMiddleware,
-  deleteWhatsappSessionController,
+  waSessions.controller.remove,
 );
 
 // MESSAGES
