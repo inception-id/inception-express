@@ -2,13 +2,7 @@ import { whatsappBasePath, whatsappRouter } from "../whatsapp/controller";
 import { logger } from "../lib/logger";
 import { responseJson } from "../middleware/response";
 import { decode, JwtPayload } from "jsonwebtoken";
-import {
-  countCurrentDayAndCurrentHourWhatsappMessages,
-  countCurrentMonthWhatsappMessage,
-  countWhatsappMessages,
-  createWhatsappMessage,
-  findManyWhatsappMessages,
-} from "./services";
+import { services } from "./services";
 import {
   findManyWhatsappSessions,
   findManyWhatsappSessionsBySessionIds,
@@ -23,7 +17,7 @@ import { ENV } from "../env";
 import { errorHandler } from "../lib/error-handler";
 import { WhatsappStatus, WhatsappEnvironment } from "../lib/types";
 
-const sendWhatsappMessageSchema = z.object({
+const SendWhatsappMessageSchema = z.object({
   whatsappPhoneId: z
     .uuidv4("Invalid whatsappPhoneId")
     .min(1, "whatsappPhoneId can not be empty"),
@@ -39,30 +33,25 @@ const sendWhatsappMessageSchema = z.object({
     .min(1, "targetPhoneNumber can not be empty")
     .regex(/^[0-9]+$/, "targetPhoneNumber must be a set of numbers"),
   message: z.string().min(1, "message can not be empty"),
-  environment: z.enum(WhatsappEnvironment, "environment is missing or invalid"),
   countryCode: z
     .string()
     .regex(/^[0-9]+$/, "countryCode must be a set of numbers")
     .optional()
-    .default("+62"),
+    .default("62"),
 });
 
-export const sendWhatsappMessageController = async (
-  req: Request,
-  res: Response,
-) => {
-  logger.info("sendWhatsappMessageController");
+export const send = async (req: Request, res: Response) => {
+  logger.info("[wa-message-controller-send]");
   const {
     whatsappPhoneId,
     whatsappPhoneNumber,
     targetPhoneNumber,
     message,
-    environment,
     countryCode,
-  } = req.body satisfies z.infer<typeof sendWhatsappMessageSchema>;
+  } = req.body satisfies z.infer<typeof SendWhatsappMessageSchema>;
 
   try {
-    sendWhatsappMessageSchema.parse(req.body);
+    SendWhatsappMessageSchema.parse(req.body);
 
     const whatsappSession = await findOneWhatsappSession({
       id: whatsappPhoneId,
@@ -86,35 +75,13 @@ export const sendWhatsappMessageController = async (
     });
     const sessionIds = userSessions.map((session) => session.id);
 
-    if (environment === WhatsappEnvironment.Development) {
-      const messageCount = await countCurrentMonthWhatsappMessage(
-        sessionIds,
-        environment,
-      );
-      if (
-        messageCount?.length > 0 &&
-        Number(messageCount[0].count) > ENV.DEVELOPMENT_MONTHLY_LIMIT
-      ) {
-        const json = responseJson(429, null, `Too Many Requests (DEVELOPMENT)`);
-        return res.status(429).json(json);
-      }
-    } else {
-      const messageCount =
-        await countCurrentDayAndCurrentHourWhatsappMessages(sessionIds);
-      if (messageCount?.length > 0) {
-        if (
-          Number(messageCount[0].last_hour_count) > whatsappSession.hourly_limit
-        ) {
-          const json = responseJson(429, null, `Too Many Requests (HOURLY)`);
-          return res.status(429).json(json);
-        }
-        if (Number(messageCount[0].today_count) > whatsappSession.daily_limit) {
-          const json = responseJson(429, null, `Too Many Requests (DAILY)`);
-          return res.status(429).json(json);
-        }
-      }
-      // handle production payment here
-    }
+    const messageCount = await services.countCurrentMonth(sessionIds);
+    const environment =
+      Number(messageCount.count) > ENV.DEVELOPMENT_MONTHLY_LIMIT
+        ? WhatsappEnvironment.Production
+        : WhatsappEnvironment.Development;
+
+    // TODO: Handle whether user want to send now or later
 
     const sentMessage = await sendWhatsapp(
       whatsappSession.id,
@@ -124,7 +91,7 @@ export const sendWhatsappMessageController = async (
     );
 
     if (sentMessage?.id) {
-      const whatsappMessage = await createWhatsappMessage({
+      const whatsappMessage = await services.create({
         session_id: whatsappSession.id,
         target_phone: targetPhoneNumber,
         text_message: message,
@@ -139,15 +106,13 @@ export const sendWhatsappMessageController = async (
       res.status(500).json(json);
     }
   } catch (err: any) {
-    logger.error("[sendWhatsappMessage]", err);
+    logger.error("[wa-message-controller-send]", err);
     return errorHandler(err, res);
   }
 };
 
-export const findWhatsappMessagesController = async (
-  req: Request,
-  res: Response,
-) => {
+export const findMany = async (req: Request, res: Response) => {
+  logger.info("[wa-message-controller-findMany]");
   try {
     const { page, perPage, environment } = req.query as {
       page?: string;
@@ -170,14 +135,15 @@ export const findWhatsappMessagesController = async (
     const sessionIds = sessions.map((session) => session.id);
     const limit = perPage ? Number(perPage) : 100;
     const offset = page && Number(page) > 1 ? (Number(page) - 1) * limit : 0;
-    const messages = await findManyWhatsappMessages({
+    const messages = await services.findMany(
       sessionIds,
+      {
+        environment,
+      },
       offset,
       limit,
-      environment,
-    });
-    const { count } = await countWhatsappMessages({
-      sessionIds,
+    );
+    const { count } = await services.count(sessionIds, {
       environment,
     });
     const pagination: Pagination = {
@@ -190,24 +156,22 @@ export const findWhatsappMessagesController = async (
     const json = responseJson(200, { messages, pagination }, "");
     res.status(500).json(json);
   } catch (err: any) {
+    logger.error("[wa-message-controller-findMany]", err);
     const json = responseJson(500, null, "");
     res.status(500).json(json);
   }
 };
 
-const sendBatchWhatsappMessageSchema = z.array(sendWhatsappMessageSchema);
+const SendBatchWhatsappMessageSchema = z.array(SendWhatsappMessageSchema);
 
-export const sendBatchWhatsappMessageController = async (
-  req: Request,
-  res: Response,
-) => {
-  logger.info("sendBatchWhatsappMessageController");
+export const sendBatch = async (req: Request, res: Response) => {
+  logger.info("[wa-message-controller-sendBatch]");
   const batchMessages = req.body satisfies z.infer<
-    typeof sendBatchWhatsappMessageSchema
+    typeof SendBatchWhatsappMessageSchema
   >;
 
   try {
-    sendBatchWhatsappMessageSchema.parse(req.body);
+    SendBatchWhatsappMessageSchema.parse(req.body);
     const phoneIds: string[] = [];
     for (const message of batchMessages) {
       if (!phoneIds.includes(message.whatsappPhoneId)) {
@@ -228,7 +192,7 @@ export const sendBatchWhatsappMessageController = async (
     }
 
     const messages = batchMessages.map(
-      (message: z.infer<typeof sendWhatsappMessageSchema>) => ({
+      (message: z.infer<typeof SendWhatsappMessageSchema>) => ({
         session_id: message.whatsappPhoneId,
         target_phone: message.whatsappPhoneNumber,
         text_message: message.message,
@@ -238,7 +202,7 @@ export const sendBatchWhatsappMessageController = async (
       }),
     );
 
-    const whatsappMessage = await createWhatsappMessage(messages);
+    const whatsappMessage = await services.create(messages);
     const json = responseJson(
       200,
       {
@@ -248,7 +212,9 @@ export const sendBatchWhatsappMessageController = async (
     );
     return res.status(200).json(json);
   } catch (err: any) {
-    logger.error("[sendBatchWhatsappMessageController]", err);
+    logger.error("[wa-message-controller-sendBatch]", err);
     return errorHandler(err, res);
   }
 };
+
+export const controller = { send, sendBatch, findMany };

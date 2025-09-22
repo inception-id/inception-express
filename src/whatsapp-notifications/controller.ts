@@ -23,7 +23,7 @@ const SendSchema = z.object({
     .string()
     .regex(/^[0-9]+$/, "countryCode must be a set of numbers")
     .optional()
-    .default("+62"),
+    .default("62"),
 });
 
 export const send = async (req: Request, res: Response) => {

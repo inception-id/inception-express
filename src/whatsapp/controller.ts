@@ -9,18 +9,13 @@ import {
   accessTokenMiddleware,
   publicApiKeyMiddleware,
 } from "../middleware/request";
-import {
-  findWhatsappMessagesController,
-  sendBatchWhatsappMessageController,
-  sendWhatsappMessageController,
-} from "../whatsapp-messages/controller";
 import { logger } from "../lib/logger";
 import { responseJson } from "../middleware/response";
-import { countAllTimeWhatsappMessages } from "../whatsapp-messages/services";
 import { decode, JwtPayload } from "jsonwebtoken";
 import { User } from "../users/services";
 import { findManyWhatsappSessions } from "../whatsapp-sessions/services";
 import waNotif from "../whatsapp-notifications";
+import waMessage from "../whatsapp-messages";
 
 export const whatsappRouter = Router();
 export const whatsappBasePath = "/whatsapp";
@@ -36,7 +31,7 @@ export const countAllTimeMessagesAndNotificationsController = async (
     const jwt = decode(accessToken) as JwtPayload & User;
     const sessions = await findManyWhatsappSessions({ user_id: jwt.id });
     const sessionIds = sessions.map((session) => session.id);
-    const messages = await countAllTimeWhatsappMessages(sessionIds);
+    const messages = await waMessage.services.countAllTime(sessionIds);
     const notifications = await waNotif.services.countAllTime(jwt.id);
     const json = responseJson(200, { messages, notifications }, "");
     res.status(500).json(json);
@@ -83,17 +78,17 @@ whatsappRouter.delete(
 whatsappRouter.post(
   "/messages",
   publicApiKeyMiddleware,
-  sendWhatsappMessageController,
+  waMessage.controller.send,
 );
 whatsappRouter.post(
   "/messages/batch",
   publicApiKeyMiddleware,
-  sendBatchWhatsappMessageController,
+  waMessage.controller.sendBatch,
 );
 whatsappRouter.get(
   "/messages",
   accessTokenMiddleware,
-  findWhatsappMessagesController,
+  waMessage.controller.findMany,
 );
 
 // NOTIFICATIONS
