@@ -38,6 +38,7 @@ const SendWhatsappMessageSchema = z.object({
     .regex(/^[0-9]+$/, "countryCode must be a set of numbers")
     .optional()
     .default("62"),
+  sendNow: z.boolean().optional().default(true),
 });
 
 export const send = async (req: Request, res: Response) => {
@@ -48,6 +49,7 @@ export const send = async (req: Request, res: Response) => {
     targetPhoneNumber,
     message,
     countryCode,
+    sendNow,
   } = req.body satisfies z.infer<typeof SendWhatsappMessageSchema>;
 
   try {
@@ -77,11 +79,9 @@ export const send = async (req: Request, res: Response) => {
 
     const messageCount = await services.countCurrentMonth(sessionIds);
     const environment =
-      Number(messageCount.count) > ENV.DEVELOPMENT_MONTHLY_LIMIT
+      sendNow || Number(messageCount.count) > ENV.DEVELOPMENT_MONTHLY_LIMIT
         ? WhatsappEnvironment.Production
         : WhatsappEnvironment.Development;
-
-    // TODO: Handle whether user want to send now or later
 
     const sentMessage = await sendWhatsapp(
       whatsappSession.id,
