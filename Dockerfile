@@ -31,7 +31,7 @@ RUN apk add --no-cache \
 
 # Set puppeteer to use system chromium
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false
 
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json .
