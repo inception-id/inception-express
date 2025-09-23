@@ -28,7 +28,7 @@ const sendWhatsappNotificationsSchema = z.object({
     .string()
     .regex(/^[0-9]+$/, "countryCode must be a set of numbers")
     .optional()
-    .default("+62"),
+    .default("62"),
 });
 
 export const sendWhatsappNotificationsController = async (
