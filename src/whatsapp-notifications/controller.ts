@@ -1,6 +1,5 @@
 import { logger } from "../lib/logger";
 import { responseJson } from "../middleware/response";
-import { findApiKey } from "../api-keys/services";
 import { ENV } from "../env";
 import { decode, JwtPayload } from "jsonwebtoken";
 import { User } from "../users/services";
@@ -11,6 +10,7 @@ import { errorHandler } from "../lib/error-handler";
 import { WhatsappStatus, WhatsappEnvironment } from "../lib/types";
 import { services, type WhatsappNotification } from "./services";
 import whatsapp from "../whatsapp";
+import apiKeys from "../api-keys";
 
 const SendSchema = z.object({
   targetPhoneNumber: z
@@ -35,9 +35,13 @@ export const send = async (req: Request, res: Response) => {
 
     const apiKeyId = req.header("x-client-id") as string;
 
-    const dbApiKey = await findApiKey(apiKeyId);
-    const userId = dbApiKey[0].user_id;
+    const dbApiKey = await apiKeys.services.find({ id: apiKeyId });
+    if (!dbApiKey) {
+      const json = responseJson(400, null, "Invalid API Key");
+      return res.status(400).json(json);
+    }
 
+    const userId = dbApiKey.user_id;
     const notifCount = await services.countCurrentMonth(userId);
     const environment =
       Number(notifCount.count) > ENV.DEVELOPMENT_MONTHLY_LIMIT
@@ -123,8 +127,13 @@ const sendBatch = async (req: Request, res: Response) => {
     SendBatchSchema.parse(req.body);
 
     const apiKeyId = req.header("x-client-id") as string;
-    const dbApiKey = await findApiKey(apiKeyId);
-    const userId = dbApiKey[0].user_id;
+    const dbApiKey = await apiKeys.services.find({ id: apiKeyId });
+    if (!dbApiKey) {
+      const json = responseJson(400, null, "Invalid API Key");
+      return res.status(400).json(json);
+    }
+
+    const userId = dbApiKey.user_id;
     const notifications = batchNotifications.map(
       (notif: z.infer<typeof SendSchema>) => ({
         session_id: ENV.INCEPTION_WHATSAPP_SESSION_ID,

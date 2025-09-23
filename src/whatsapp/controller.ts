@@ -12,10 +12,9 @@ import waMessage from "../whatsapp-messages";
 import waSessions from "../whatsapp-sessions";
 
 export const whatsappRouter = Router();
-export const whatsappBasePath = "/whatsapp";
 
 // COUNTS
-export const countAllTimeMessagesAndNotificationsController = async (
+const countAllTimeMessagesAndNotificationsController = async (
   req: Request,
   res: Response,
 ): Promise<any> => {

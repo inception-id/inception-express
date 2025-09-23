@@ -10,14 +10,21 @@ export type ApiKey = {
   api_key: string;
 };
 
-export const findApiKey = async (id: string): Promise<ApiKey[]> => {
+type FindParams = Partial<Pick<ApiKey, "id" | "user_id">>;
+
+const find = async (params: FindParams): Promise<ApiKey | null> => {
+  logger.info("[api-key-find]");
   try {
     return await pg(TABLES.API_KEYS)
-      .where({ id })
+      .where(params)
       .orderBy("created_at", "desc")
-      .returning("*");
+      .first();
   } catch (err) {
-    logger.error("findApiKey:", err);
-    throw err;
+    logger.error("[api-key-find]", err);
+    return null;
   }
+};
+
+export const services = {
+  find,
 };
