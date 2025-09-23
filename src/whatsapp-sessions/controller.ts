@@ -2,10 +2,11 @@ import { Request, Response } from "express";
 import { logger } from "../lib/logger";
 import { responseJson } from "../middleware/response";
 import { decode, JwtPayload } from "jsonwebtoken";
-import { findUserById, User } from "../users/services";
 import { services } from "./services";
 import z from "zod";
 import whatsapp from "../whatsapp";
+import users from "../users";
+import { User } from "../users/services";
 
 const create = async (req: Request, res: Response) => {
   logger.info("wa-session-controller-create");
@@ -41,7 +42,7 @@ const create = async (req: Request, res: Response) => {
   try {
     const accessToken = req.header("x-access-token") as string;
     const jwt = decode(accessToken) as JwtPayload & User;
-    const user = await findUserById(jwt.id);
+    const user = await users.services.find({ id: jwt.id });
     if (!user) {
       const json = responseJson(400, null, "User not found");
       return res.status(400).json(json);
