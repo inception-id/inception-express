@@ -16,7 +16,8 @@ const SendSchema = z.object({
   targetPhoneNumber: z
     .string()
     .min(1, "targetPhoneNumber can not be empty")
-    .regex(/^[0-9]+$/, "targetPhoneNumber must be a set of numbers"),
+    .regex(/^[0-9]+$/, "targetPhoneNumber must be a set of numbers")
+    .transform((val) => val.replace(/^0+/, "")),
   message: z.string().min(1, "message can not be empty"),
   countryCode: z
     .string()
