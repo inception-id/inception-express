@@ -132,7 +132,7 @@ export const findMany = async (req: Request, res: Response) => {
     const sessionIds = sessions.map((session) => session.id);
     const limit = perPage ? Number(perPage) : 100;
     const offset = page && Number(page) > 1 ? (Number(page) - 1) * limit : 0;
-    const messages = await services.findMany(
+    const messages = await services.findManyBySessionIds(
       sessionIds,
       {
         environment,

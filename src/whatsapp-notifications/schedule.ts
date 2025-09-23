@@ -1,7 +1,7 @@
 import { ENV } from "../env";
 import { logger } from "../lib/logger";
 import { services } from "./services";
-import { WhatsappStatus } from "../lib/types";
+import { WhatsappEnvironment, WhatsappStatus } from "../lib/types";
 import whatsapp from "../whatsapp";
 
 const send = async () => {
@@ -17,12 +17,16 @@ const send = async () => {
     if (notifCount === 0) {
       logger.info("[wa-notif-scheduleSend] No pending notifications");
       return;
+    } else {
+      logger.info(
+        `[wa-notif-scheduleSend] ${notifCount} pending notifications`,
+      );
     }
 
-    // Send max 30 messages per hour
-    logger.info(`[wa-notif-scheduleSend] ${notifCount} pending notifications`);
-    if (notifCount > 30) {
-      pendingNotifications = pendingNotifications.slice(0, 5);
+    // Send max 10 messages per 10 mins
+    const maxNotifCount = Math.floor(Math.random() * 10);
+    if (notifCount > maxNotifCount) {
+      pendingNotifications = pendingNotifications.slice(0, maxNotifCount);
     }
 
     let successCount = 0;
@@ -36,11 +40,17 @@ const send = async () => {
         notification.country_code,
       );
 
+      const notifCount = await services.countCurrentMonth(notification.user_id);
+      const environment =
+        Number(notifCount.count) > ENV.DEVELOPMENT_MONTHLY_LIMIT
+          ? WhatsappEnvironment.Production
+          : WhatsappEnvironment.Development;
       await services.update(
         {
           id: notification.id,
         },
         {
+          environment,
           status: sentNotification?.id
             ? WhatsappStatus.Delivered
             : WhatsappStatus.Failed,

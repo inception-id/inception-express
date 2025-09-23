@@ -3,6 +3,7 @@ import cors from "cors";
 import { logger } from "./lib/logger";
 import { whatsappRouter } from "./whatsapp/controller";
 import waNotif from "./whatsapp-notifications";
+import waMessage from "./whatsapp-messages";
 
 export const app = express();
 
@@ -22,6 +23,13 @@ app.listen(port, async () => {
     async () => {
       await waNotif.schedule.send();
     },
+    1000 * 60 * 10,
+  ); // Every 10 minutes
+
+  setInterval(
+    async () => {
+      await waMessage.schedule.send();
+    },
     1000 * 60 * 60,
-  ); // Every hour
+  ); // Every one hour
 });
