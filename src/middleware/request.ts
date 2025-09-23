@@ -3,7 +3,7 @@ import { ENV } from "../env";
 import { responseJson } from "./response";
 import { logger } from "../lib/logger";
 import bcrypt from "bcrypt";
-import { findApiKey } from "../api-keys/services";
+import apiKeys from "../api-keys";
 
 const verifyAccessToken = async (
   accessToken: string,
@@ -77,13 +77,13 @@ export const publicApiKeyMiddleware = async (
     return res.status(401).json(jsonResponse);
   }
 
-  const dbApiKey = await findApiKey(apiKeyId);
-  if (!dbApiKey || dbApiKey.length === 0) {
-    const jsonResponse = responseJson(403, null, "Forbidden");
-    return res.status(403).json(jsonResponse);
+  const dbApiKey = await apiKeys.services.find({ id: apiKeyId });
+  if (!dbApiKey) {
+    const jsonResponse = responseJson(400, null, "Invalid API Key");
+    return res.status(400).json(jsonResponse);
   }
 
-  const isValid = await bcrypt.compare(apiKey, dbApiKey[0].api_key);
+  const isValid = await bcrypt.compare(apiKey, dbApiKey.api_key);
   if (!isValid) {
     const jsonResponse = responseJson(403, null, "Forbidden");
     return res.status(403).json(jsonResponse);
