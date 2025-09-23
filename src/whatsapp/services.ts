@@ -12,7 +12,11 @@ const createClientOptions = (sessionId: string): ClientOptions => {
   return {
     qrMaxRetries: 1,
     puppeteer: {
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        `--user-data-dir=/tmp/chrome-${Date.now()}`,
+      ],
     },
     authStrategy: new LocalAuth({
       clientId: sessionId,
