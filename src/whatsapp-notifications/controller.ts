@@ -15,17 +15,19 @@ import apiKeys from "../api-keys";
 const SendSchema = z.object({
   targetPhoneNumber: z
     .string()
-    .min(1, "targetPhoneNumber can not be empty")
-    .regex(/^[0-9]+$/, "targetPhoneNumber must be a set of numbers")
-    .transform((val) => val.replace(/^0+/, "")),
-  message: z.string().min(1, "message can not be empty"),
+    .min(1, "can not be empty")
+    .regex(
+      /^[1-9][0-9]*$/,
+      "must be a set of numbers and must not start with 0",
+    ),
+  message: z.string().min(1, "can not be empty"),
   environment: z
-    .enum(WhatsappEnvironment, "environment is missing or invalid")
+    .enum(WhatsappEnvironment, "invalid value")
     .optional()
     .default(WhatsappEnvironment.Development),
   countryCode: z
     .string()
-    .regex(/^[0-9]+$/, "countryCode must be a set of numbers")
+    .regex(/^[0-9]+$/, "must be a set of numbers")
     .optional()
     .default("62"),
 });
@@ -191,14 +193,14 @@ const findMany = async (req: Request, res: Response) => {
     const notifications = await services.findMany(
       {
         user_id: jwt.id,
-        environment,
+        ...(environment && { environment }),
       },
       offset,
       limit,
     );
     const { count } = await services.count({
       user_id: jwt.id,
-      environment,
+      ...(environment && { environment }),
     });
     const pagination: Pagination = {
       page: page ? Number(page) : 1,

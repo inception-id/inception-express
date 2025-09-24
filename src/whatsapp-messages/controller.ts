@@ -13,29 +13,27 @@ import whatsappSessions from "../whatsapp-sessions";
 import whatsapp from "../whatsapp";
 
 const SendWhatsappMessageSchema = z.object({
-  whatsappPhoneId: z
-    .uuidv4("Invalid whatsappPhoneId")
-    .min(1, "whatsappPhoneId can not be empty"),
+  whatsappPhoneId: z.uuidv4("invalid format").min(1, "can not be empty"),
   whatsappPhoneNumber: z
     .string()
-    .min(1, "whatsappPhoneNumber can not be empty")
-    .regex(
-      /^8\d*$/,
-      "whatsappPhoneNumber must start with 8 followed with numbers",
-    ),
+    .min(1, "can not be empty")
+    .regex(/^8\d*$/, "must start with 8 followed with numbers"),
   targetPhoneNumber: z
     .string()
-    .min(1, "targetPhoneNumber can not be empty")
-    .regex(/^[0-9]+$/, "targetPhoneNumber must be a set of numbers")
+    .min(1, "can not be empty")
+    .regex(
+      /^[1-9][0-9]*$/,
+      "must be a set of numbers and must not start with 0",
+    )
     .transform((val) => val.replace(/^0+/, "")),
   message: z.string().min(1, "message can not be empty"),
   environment: z
-    .enum(WhatsappEnvironment, "environment is missing or invalid")
+    .enum(WhatsappEnvironment, "invalid")
     .optional()
     .default(WhatsappEnvironment.Development),
   countryCode: z
     .string()
-    .regex(/^[0-9]+$/, "countryCode must be a set of numbers")
+    .regex(/^[0-9]+$/, "must be a set of numbers")
     .optional()
     .default("62"),
   sendNow: z.boolean().optional().default(true),
@@ -141,13 +139,13 @@ export const findMany = async (req: Request, res: Response) => {
     const messages = await services.findManyBySessionIds(
       sessionIds,
       {
-        environment,
+        ...(environment && { environment }),
       },
       offset,
       limit,
     );
     const { count } = await services.count(sessionIds, {
-      environment,
+      ...(environment && { environment }),
     });
     const pagination: Pagination = {
       page: page ? Number(page) : 1,
