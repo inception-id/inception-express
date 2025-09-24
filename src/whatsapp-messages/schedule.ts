@@ -59,7 +59,7 @@ const send = async () => {
       `[wa-message-scheduleSend] ${pendingMessages.length} pending notifications`,
     );
 
-    if (pendingMessages.length < 10) {
+    if (pendingMessages.length <= 10) {
       for (let j = 0; j < pendingMessages.length; j++) {
         await sendAndUpdateMessage(pendingMessages[j]);
       }
@@ -86,12 +86,15 @@ const send = async () => {
     for (let i = 0; i < timeouts.length; i++) {
       if (pendingMessages.length > timeouts[i]) {
         const firstSlice = i === 0 ? 0 : timeouts[i - 1];
-        setTimeout(async () => {
-          const msgSlice = pendingMessages.slice(firstSlice, timeouts[i]);
-          for (let j = 0; j < msgSlice.length; j++) {
-            await sendAndUpdateMessage(msgSlice[j]);
-          }
-        }, timeouts[i] * 1000);
+        setTimeout(
+          async () => {
+            const msgSlice = pendingMessages.slice(firstSlice, timeouts[i]);
+            for (let j = 0; j < msgSlice.length; j++) {
+              await sendAndUpdateMessage(msgSlice[j]);
+            }
+          },
+          timeouts[i] * 1000 * 60,
+        ); // In minutes
       }
     }
   } catch (err) {
