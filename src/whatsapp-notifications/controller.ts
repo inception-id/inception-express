@@ -168,14 +168,17 @@ const sendBatch = async (req: Request, res: Response) => {
   }
 };
 
+type FindManyQuery = Partial<
+  Pick<WhatsappNotification, "environment" | "status">
+> & {
+  page?: number;
+  perPage?: number;
+};
+
 const findMany = async (req: Request, res: Response) => {
   logger.info(`[wa-notif-controller-findMany]`);
   try {
-    const { page, perPage, environment } = req.query as {
-      page?: string;
-      perPage?: string;
-      environment?: WhatsappEnvironment;
-    };
+    const { page, perPage, environment, status } = req.query as FindManyQuery;
 
     if (
       environment &&
@@ -194,6 +197,7 @@ const findMany = async (req: Request, res: Response) => {
       {
         user_id: jwt.id,
         ...(environment && { environment }),
+        ...(status && { status }),
       },
       offset,
       limit,
@@ -201,6 +205,7 @@ const findMany = async (req: Request, res: Response) => {
     const { count } = await services.count({
       user_id: jwt.id,
       ...(environment && { environment }),
+      ...(status && { status }),
     });
     const pagination: Pagination = {
       page: page ? Number(page) : 1,

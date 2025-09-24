@@ -13,7 +13,7 @@ export type WhatsappNotification = {
   text_message: string | null;
   environment: WhatsappEnvironment;
   country_code: string;
-  status?: WhatsappStatus;
+  status: WhatsappStatus | null;
 };
 
 type CreateParam = Pick<

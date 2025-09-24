@@ -13,7 +13,7 @@ export type WhatsappMessage = {
   text_message: string | null;
   environment: WhatsappEnvironment;
   country_code: string;
-  status?: WhatsappStatus;
+  status: WhatsappStatus | null;
 };
 
 type CreateParam = Pick<
@@ -89,7 +89,9 @@ const count = async (
 ): Promise<{ count: string }> => {
   logger.info("[wa-message-count]");
 
-  const query = pg(TABLES.WHATSAPP_MESSAGES).whereIn("session_id", sessionIds);
+  const query = pg(TABLES.WHATSAPP_MESSAGES)
+    .count()
+    .whereIn("session_id", sessionIds);
   if (params && Object.keys(params).length > 0) {
     query.andWhere({ ...params });
   }

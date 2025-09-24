@@ -1,7 +1,7 @@
 import { logger } from "../lib/logger";
 import { responseJson } from "../middleware/response";
 import { decode, JwtPayload } from "jsonwebtoken";
-import { services } from "./services";
+import { services, WhatsappMessage } from "./services";
 import { Pagination } from "../lib/types";
 import { User } from "../users/services";
 import { Request, Response } from "express";
@@ -110,14 +110,17 @@ export const send = async (req: Request, res: Response) => {
   }
 };
 
-export const findMany = async (req: Request, res: Response) => {
+type FindManyQuery = Partial<
+  Pick<WhatsappMessage, "environment" | "status">
+> & {
+  page?: number;
+  perPage?: number;
+};
+
+const findMany = async (req: Request, res: Response) => {
   logger.info("[wa-message-controller-findMany]");
   try {
-    const { page, perPage, environment } = req.query as {
-      page?: string;
-      perPage?: string;
-      environment?: WhatsappEnvironment;
-    };
+    const { page, perPage, environment, status } = req.query as FindManyQuery;
 
     if (
       environment &&
@@ -140,12 +143,14 @@ export const findMany = async (req: Request, res: Response) => {
       sessionIds,
       {
         ...(environment && { environment }),
+        ...(status && { status }),
       },
       offset,
       limit,
     );
     const { count } = await services.count(sessionIds, {
       ...(environment && { environment }),
+      ...(status && { status }),
     });
     const pagination: Pagination = {
       page: page ? Number(page) : 1,
