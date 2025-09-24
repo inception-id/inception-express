@@ -19,6 +19,10 @@ const SendSchema = z.object({
     .regex(/^[0-9]+$/, "targetPhoneNumber must be a set of numbers")
     .transform((val) => val.replace(/^0+/, "")),
   message: z.string().min(1, "message can not be empty"),
+  environment: z
+    .enum(WhatsappEnvironment, "environment is missing or invalid")
+    .optional()
+    .default(WhatsappEnvironment.Development),
   countryCode: z
     .string()
     .regex(/^[0-9]+$/, "countryCode must be a set of numbers")
@@ -28,7 +32,7 @@ const SendSchema = z.object({
 
 export const send = async (req: Request, res: Response) => {
   logger.info(`[wa-notif-controller-send]`);
-  const { targetPhoneNumber, message, countryCode } =
+  const { targetPhoneNumber, message, environment, countryCode } =
     req.body satisfies z.infer<typeof SendSchema>;
 
   try {
@@ -44,10 +48,10 @@ export const send = async (req: Request, res: Response) => {
 
     const userId = dbApiKey.user_id;
     const notifCount = await services.countCurrentMonth(userId);
-    const environment =
+    const notifEnvironment =
       Number(notifCount.count) > ENV.DEVELOPMENT_MONTHLY_LIMIT
         ? WhatsappEnvironment.Production
-        : WhatsappEnvironment.Development;
+        : environment;
 
     const pendingNotifs = await services.findMany(
       {
@@ -63,7 +67,7 @@ export const send = async (req: Request, res: Response) => {
         user_id: userId,
         target_phone: targetPhoneNumber,
         text_message: message,
-        environment,
+        environment: notifEnvironment,
         country_code: countryCode ? countryCode : "62",
         status: WhatsappStatus.Pending,
       });
@@ -92,7 +96,7 @@ export const send = async (req: Request, res: Response) => {
           user_id: userId,
           target_phone: targetPhoneNumber,
           text_message: message,
-          environment,
+          environment: notifEnvironment,
           country_code: countryCode,
           status: WhatsappStatus.Delivered,
         });

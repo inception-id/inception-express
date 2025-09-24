@@ -29,6 +29,10 @@ const SendWhatsappMessageSchema = z.object({
     .regex(/^[0-9]+$/, "targetPhoneNumber must be a set of numbers")
     .transform((val) => val.replace(/^0+/, "")),
   message: z.string().min(1, "message can not be empty"),
+  environment: z
+    .enum(WhatsappEnvironment, "environment is missing or invalid")
+    .optional()
+    .default(WhatsappEnvironment.Development),
   countryCode: z
     .string()
     .regex(/^[0-9]+$/, "countryCode must be a set of numbers")
@@ -44,6 +48,7 @@ export const send = async (req: Request, res: Response) => {
     whatsappPhoneNumber,
     targetPhoneNumber,
     message,
+    environment,
     countryCode,
     sendNow,
   } = req.body satisfies z.infer<typeof SendWhatsappMessageSchema>;
@@ -74,10 +79,10 @@ export const send = async (req: Request, res: Response) => {
     const sessionIds = userSessions.map((session) => session.id);
 
     const messageCount = await services.countCurrentMonth(sessionIds);
-    const environment =
+    const messageEnvironment =
       sendNow || Number(messageCount.count) > ENV.DEVELOPMENT_MONTHLY_LIMIT
         ? WhatsappEnvironment.Production
-        : WhatsappEnvironment.Development;
+        : environment;
 
     const sentMessage = await whatsapp.services.sendMessage(
       whatsappSession.id,
@@ -91,7 +96,7 @@ export const send = async (req: Request, res: Response) => {
         session_id: whatsappSession.id,
         target_phone: targetPhoneNumber,
         text_message: message,
-        environment,
+        environment: messageEnvironment,
         country_code: countryCode ? countryCode : "62",
         status: WhatsappStatus.Delivered,
       });
