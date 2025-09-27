@@ -25,12 +25,20 @@ const create = async (req: Request, res: Response) => {
     return res.status(400).json(json);
   }
 
-  if (!phone.match(/^8\d*$/) || phone.length < 9) {
+  if (!phone.match(/^8\d*$/)) {
     // should start with 8 and contain only digits
     const json = responseJson(
       400,
       null,
       "Phone should start with 8 and contain only digits",
+    );
+    return res.status(400).json(json);
+  }
+  if (phone.length < 9) {
+    const json = responseJson(
+      400,
+      null,
+      "Phone should be at least 9 digits long",
     );
     return res.status(400).json(json);
   }
