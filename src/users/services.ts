@@ -11,12 +11,19 @@ export type User = {
   phone?: string;
 };
 
-export const findUserById = async (userId: string): Promise<User | null> => {
-  logger.info("findUserById", `Received request to find user by id: ${userId}`);
+type FindParams = Partial<
+  Pick<User, "id" | "supertokens_user_id" | "email" | "phone">
+>;
+const find = async (params: FindParams): Promise<User | null> => {
+  logger.info("[user-find]");
   try {
-    return await pg(TABLES.USERS).where({ id: userId }).first();
+    return await pg(TABLES.USERS).where(params).first();
   } catch (error) {
-    logger.error("findUserById", error);
+    logger.error("[user-find]", error);
     return null;
   }
+};
+
+export const services = {
+  find,
 };

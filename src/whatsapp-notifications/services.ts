@@ -1,11 +1,7 @@
 import { pg } from "../db/pg";
 import { TABLES } from "../db/tables";
 import { logger } from "../lib/logger";
-
-export enum WhatsappEnvironment {
-  Development = "DEVELOPMENT",
-  Production = "PRODUCTION",
-}
+import { WhatsappEnvironment, WhatsappStatus } from "../lib/types";
 
 export type WhatsappNotification = {
   id: string;
@@ -17,10 +13,29 @@ export type WhatsappNotification = {
   text_message: string | null;
   environment: WhatsappEnvironment;
   country_code: string;
+  status: WhatsappStatus | null;
 };
 
-export const createWhatsappNotification = async (
-  payload: Pick<
+type CreateParam = Pick<
+  WhatsappNotification,
+  | "session_id"
+  | "user_id"
+  | "target_phone"
+  | "text_message"
+  | "environment"
+  | "country_code"
+  | "status"
+>;
+
+export const create = async (
+  payload: CreateParam | CreateParam[],
+): Promise<WhatsappNotification[]> => {
+  logger.info("[wa-notif-create]");
+  return await pg(TABLES.WHATSAPP_NOTIFICATIONS).insert(payload).returning("*");
+};
+
+type FindManyParams = Partial<
+  Pick<
     WhatsappNotification,
     | "session_id"
     | "user_id"
@@ -28,16 +43,66 @@ export const createWhatsappNotification = async (
     | "text_message"
     | "environment"
     | "country_code"
-  >,
+    | "status"
+  >
+>;
+
+const findMany = async (
+  param: FindManyParams,
+  offset?: number,
+  limit?: number,
 ): Promise<WhatsappNotification[]> => {
-  logger.info("createWhatsappNotification", payload);
-  return await pg(TABLES.WHATSAPP_NOTIFICATIONS).insert(payload).returning("*");
+  logger.info("[wa-notif-findMany]");
+  const query = pg(TABLES.WHATSAPP_NOTIFICATIONS).where({ ...param });
+  if (typeof offset === "number") {
+    query.offset(offset);
+  }
+  if (typeof limit === "number") {
+    query.limit(limit);
+  }
+  query.orderBy("created_at", "desc");
+  return await query.returning("*");
 };
 
-export const countCurrentMonthWhatsappNotifications = async (
-  userId: string,
-): Promise<{ environment: WhatsappEnvironment; count: string }[]> => {
-  logger.info("countCurrentMonthWhatsappNotification");
+type UpdateFilterParams = Partial<
+  Pick<
+    WhatsappNotification,
+    | "id"
+    | "session_id"
+    | "user_id"
+    | "target_phone"
+    | "text_message"
+    | "environment"
+    | "country_code"
+    | "status"
+  >
+>;
+type UpdateParams = Partial<
+  Omit<WhatsappNotification, "id" | "created_at" | "updated_at">
+>;
+
+const update = async (
+  filter: UpdateFilterParams,
+  params: UpdateParams,
+): Promise<WhatsappNotification[]> => {
+  logger.info("[wa-notif-update]");
+  return await pg(TABLES.WHATSAPP_NOTIFICATIONS)
+    .where({ ...filter })
+    .update({ ...params })
+    .returning("*");
+};
+
+const count = async (params: FindManyParams): Promise<{ count: string }> => {
+  logger.info("[wa-notif-count]");
+  const notifCount = await pg(TABLES.WHATSAPP_NOTIFICATIONS)
+    .count("id")
+    .where({ ...params })
+    .first();
+  return notifCount as { count: string };
+};
+
+const countCurrentMonth = async (userId: string) => {
+  logger.info("[wa-notif-countCurrentMonth]");
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
@@ -46,61 +111,16 @@ export const countCurrentMonthWhatsappNotifications = async (
   endOfMonth.setMonth(endOfMonth.getMonth() + 1);
   endOfMonth.setMilliseconds(-1);
 
-  return await pg(TABLES.WHATSAPP_NOTIFICATIONS)
-    .select("environment")
-    .count("environment as count")
+  const notifCount = await pg(TABLES.WHATSAPP_NOTIFICATIONS)
+    .count()
     .where("user_id", userId)
     .andWhereBetween("created_at", [startOfMonth, endOfMonth])
-    .groupBy("environment");
+    .first();
+  return notifCount as { count: string };
 };
 
-type FindManyWhatsappNotificationPayload = {
-  userId: string;
-  offset: number;
-  limit: number;
-  environment?: WhatsappEnvironment;
-};
-
-export const findManyWhatsappNotifications = async (
-  payload: FindManyWhatsappNotificationPayload,
-): Promise<WhatsappNotification[]> => {
-  logger.info("findWhatsappNotifications");
-  if (payload.environment) {
-    return await pg(TABLES.WHATSAPP_NOTIFICATIONS)
-      .where("user_id", payload.userId)
-      .andWhere("environment", payload.environment)
-      .offset(payload.offset)
-      .limit(payload.limit)
-      .orderBy("created_at", "desc")
-      .returning("*");
-  }
-  return await pg(TABLES.WHATSAPP_NOTIFICATIONS)
-    .where("user_id", payload.userId)
-    .offset(payload.offset)
-    .limit(payload.limit)
-    .orderBy("created_at", "desc")
-    .returning("*");
-};
-
-export const countWhatsappNotifications = async (
-  payload: Pick<FindManyWhatsappNotificationPayload, "userId" | "environment">,
-): Promise<{ count: string }> => {
-  logger.info("countWhatsappNotifications");
-  if (payload.environment) {
-    return (await pg(TABLES.WHATSAPP_NOTIFICATIONS)
-      .count("id")
-      .where("user_id", payload.userId)
-      .andWhere("environment", payload.environment)
-      .first()) as { count: string };
-  }
-  return (await pg(TABLES.WHATSAPP_NOTIFICATIONS)
-    .count("id")
-    .where("user_id", payload.userId)
-    .first()) as { count: string };
-};
-
-export const countAllTimeWhatsappNotifications = async (userId: string) => {
-  logger.info("countAllTimeWhatsappNotifications");
+const countAllTime = async (userId: string) => {
+  logger.info("[wa-notif-countAllTime]");
   return pg(TABLES.WHATSAPP_NOTIFICATIONS)
     .select(
       pg.raw("EXTRACT(YEAR FROM created_at) AS year"),
@@ -112,4 +132,13 @@ export const countAllTimeWhatsappNotifications = async (userId: string) => {
     .groupByRaw("year, month, environment")
     .orderByRaw("year, month desc")
     .returning("*");
+};
+
+export const services = {
+  create,
+  findMany,
+  update,
+  count,
+  countCurrentMonth,
+  countAllTime,
 };

@@ -1,32 +1,15 @@
 import { Request, Response } from "express";
-import { whatsappBasePath, whatsappRouter } from "../whatsapp/controller";
-import { accessTokenMiddleware } from "../middleware/request";
 import { logger } from "../lib/logger";
 import { responseJson } from "../middleware/response";
 import { decode, JwtPayload } from "jsonwebtoken";
-import { findUserById, User } from "../users/services";
-import {
-  createWhatsappSession,
-  deleteWhatsappSession,
-  findManyWhatsappSessions,
-  findOneWhatsappSession,
-  updateWhatsappSession,
-} from "./services";
-import {
-  destroyWhatsappClient,
-  initWhatsappClient,
-  whatsappQrStore,
-} from "../whatsapp/services";
+import { services } from "./services";
 import z from "zod";
+import whatsapp from "../whatsapp";
+import users from "../users";
+import { User } from "../users/services";
 
-export const createWhatsappSessionController = async (
-  req: Request,
-  res: Response,
-) => {
-  const path = req.path;
-  logger.info(
-    `${whatsappBasePath + path} Received request to create WhatsApp session`,
-  );
+const create = async (req: Request, res: Response) => {
+  logger.info("wa-session-controller-create");
 
   if (!req.body) {
     const json = responseJson(400, null, "Missing userId and phone");
@@ -38,16 +21,24 @@ export const createWhatsappSessionController = async (
   };
 
   if (!phone) {
-    const json = responseJson(400, null, "Missing userId and phone");
+    const json = responseJson(400, null, "Missing phone");
     return res.status(400).json(json);
   }
 
-  if (!phone.match(/^8\d*$/) || phone.length < 9) {
+  if (!phone.match(/^8\d*$/)) {
     // should start with 8 and contain only digits
     const json = responseJson(
       400,
       null,
       "Phone should start with 8 and contain only digits",
+    );
+    return res.status(400).json(json);
+  }
+  if (phone.length < 9) {
+    const json = responseJson(
+      400,
+      null,
+      "Phone should be at least 9 digits long",
     );
     return res.status(400).json(json);
   }
@@ -59,41 +50,40 @@ export const createWhatsappSessionController = async (
   try {
     const accessToken = req.header("x-access-token") as string;
     const jwt = decode(accessToken) as JwtPayload & User;
-    const user = await findUserById(jwt.id);
+    const user = await users.services.find({ id: jwt.id });
     if (!user) {
       const json = responseJson(400, null, "User not found");
       return res.status(400).json(json);
     }
-    const session = await createWhatsappSession(user.id, phone);
+    const session = await services.create({ user_id: user.id, phone });
     if (session?.length === 0) {
       const json = responseJson(500, null, "Fail to create session");
       return res.status(500).json(json);
       return;
     }
-    const client = await initWhatsappClient(session[0].id);
-    const qr = whatsappQrStore.get(session[0].id);
-    const json = responseJson(201, { qr }, "");
-    return res.status(201).json(json);
+    const client = await whatsapp.services.initClient(session[0].id);
+    if (client) {
+      const qr = whatsapp.services.getClientQr(session[0].id);
+      const json = responseJson(201, { qr }, "");
+      return res.status(201).json(json);
+    } else {
+      const json = responseJson(500, null, "Internal server error");
+      return res.status(500).json(json);
+    }
   } catch (err: any) {
-    logger.error(whatsappBasePath + path, err);
+    logger.error("[wa-session-controller-create]", err);
     const json = responseJson(500, null, "Internal server error");
     return res.status(500).json(json);
   }
 };
 
-export const findWhatsappSessionsController = async (
-  req: Request,
-  res: Response,
-) => {
-  const path = req.path;
-  logger.info(
-    `${whatsappBasePath + path} Received request to find WhatsApp sessions`,
-  );
+const findMany = async (req: Request, res: Response) => {
+  logger.info("[wa-session-controller-find]");
 
   try {
     const accessToken = req.header("x-access-token") as string;
     const jwt = decode(accessToken) as JwtPayload & User;
-    const sessions = await findManyWhatsappSessions({
+    const sessions = await services.findMany({
       user_id: jwt.id,
       is_ready: true,
       is_deleted: false,
@@ -101,81 +91,34 @@ export const findWhatsappSessionsController = async (
     const json = responseJson(200, sessions, "");
     return res.status(200).json(json);
   } catch (err: any) {
-    logger.error(whatsappBasePath + path, err);
+    logger.error("[wa-session-controller-find]", err);
     const json = responseJson(500, null, "Internal server error");
     return res.status(500).json(json);
   }
 };
 
-export const deleteWhatsappSessionController = async (
-  req: Request,
-  res: Response,
-) => {
-  const path = req.path;
+const remove = async (req: Request, res: Response) => {
   const params = req.params;
-  const endpoint = `${whatsappBasePath}${path}/${params.sessionId}`;
-  logger.info(`${endpoint} Received request to delete WhatsApp session`);
+  logger.info("[wa-session-controller-remove]");
 
   try {
     const accessToken = req.header("x-access-token") as string;
     const jwt = decode(accessToken) as JwtPayload & User;
-    const sessions = await deleteWhatsappSession(params.sessionId, jwt.id);
-    if (sessions) await destroyWhatsappClient(params.sessionId);
+    const sessions = await services.update(
+      {
+        id: params.sessionId,
+        user_id: jwt.id,
+      },
+      { is_deleted: true },
+    );
+    if (sessions) await whatsapp.services.destroyClient(params.sessionId);
     const json = responseJson(200, sessions, "");
     return res.status(200).json(json);
   } catch (err: any) {
-    logger.error(endpoint, err);
+    logger.error("[wa-session-controller-remove]", err);
     const json = responseJson(500, null, "Internal server error");
     return res.status(500).json(json);
   }
 };
 
-const updateWhatsapSessionSchema = z.object({
-  hourly_limit: z.number().min(1),
-  daily_limit: z.number().min(1),
-});
-
-export const updateWhatsappSessionController = async (
-  req: Request,
-  res: Response,
-) => {
-  logger.info("updateWhatsappSessionController");
-  const { sessionId } = req.params;
-  const { hourly_limit, daily_limit } = req.body satisfies z.infer<
-    typeof updateWhatsapSessionSchema
-  >;
-
-  try {
-    updateWhatsapSessionSchema.parse(req.body);
-
-    const accessToken = req.header("x-access-token") as string;
-    const jwt = decode(accessToken) as JwtPayload & User;
-    const session = await findOneWhatsappSession({
-      id: sessionId,
-      user_id: jwt.id,
-    });
-    if (!session) {
-      const json = responseJson(404, null, "Not Found");
-      return res.status(404).json(json);
-    }
-
-    const updatedSession = await updateWhatsappSession(sessionId, {
-      hourly_limit,
-      daily_limit,
-    });
-    const json = responseJson(200, updatedSession, "OK");
-    return res.status(200).json(json);
-  } catch (err: any) {
-    logger.error("updateWhatsappSessionController:", err);
-    if (err instanceof z.ZodError) {
-      const json = responseJson(
-        400,
-        null,
-        `${err.issues[0].path}: ${err.issues[0].message}`,
-      );
-      return res.status(400).json(json);
-    }
-    const json = responseJson(500, null, "Internal server error");
-    return res.status(500).json(json);
-  }
-};
+export const controller = { create, findMany, remove };

@@ -1,7 +1,8 @@
 import { pg } from "../db/pg";
 import { TABLES } from "../db/tables";
 import { logger } from "../lib/logger";
-import { WhatsappEnvironment } from "../whatsapp-notifications/services";
+import { WhatsappEnvironment } from "../lib/types";
+import { WhatsappStatus } from "../lib/types";
 
 export type WhatsappMessage = {
   id: string;
@@ -9,46 +10,27 @@ export type WhatsappMessage = {
   created_at: string;
   updated_at: string;
   target_phone: string;
-  environment: WhatsappEnvironment;
   text_message: string | null;
+  environment: WhatsappEnvironment;
   country_code: string;
+  status: WhatsappStatus | null;
 };
 
-export const createWhatsappMessage = async (
-  payload: Pick<
-    WhatsappMessage,
-    | "session_id"
-    | "target_phone"
-    | "text_message"
-    | "environment"
-    | "country_code"
-  >,
+type CreateParam = Pick<
+  WhatsappMessage,
+  | "session_id"
+  | "target_phone"
+  | "text_message"
+  | "environment"
+  | "country_code"
+  | "status"
+>;
+
+const create = async (
+  payload: CreateParam | CreateParam[],
 ): Promise<WhatsappMessage[]> => {
-  logger.info("createWhatsappMessage");
+  logger.info("[wa-message-create]");
   return await pg(TABLES.WHATSAPP_MESSAGES).insert(payload).returning("*");
-};
-
-export const countCurrentMonthWhatsappMessage = async (
-  sessionIds: string[],
-  environment: WhatsappEnvironment,
-): Promise<{ environment: string; count: string }[]> => {
-  logger.info("countCurrentMonthWhatsappMessage");
-
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  startOfMonth.setHours(0, 0, 0, 0);
-
-  const endOfMonth = new Date(startOfMonth);
-  endOfMonth.setMonth(endOfMonth.getMonth() + 1);
-  endOfMonth.setMilliseconds(-1);
-
-  return await pg(TABLES.WHATSAPP_MESSAGES)
-    .select("environment")
-    .count("environment as count")
-    .whereIn("session_id", sessionIds)
-    .andWhereBetween("created_at", [startOfMonth, endOfMonth])
-    .andWhere("environment", environment)
-    .groupBy("environment");
 };
 
 type FindManyWhatsappMessagesPayload = {
@@ -58,46 +40,88 @@ type FindManyWhatsappMessagesPayload = {
   environment?: WhatsappEnvironment;
 };
 
-export const findManyWhatsappMessages = async (
-  payload: FindManyWhatsappMessagesPayload,
-): Promise<WhatsappMessage[]> => {
-  logger.info("findWhatsappMessages");
-  if (payload.environment) {
-    return await pg(TABLES.WHATSAPP_MESSAGES)
-      .whereIn("session_id", payload.sessionIds)
-      .andWhere("environment", payload.environment)
-      .offset(payload.offset)
-      .limit(payload.limit)
-      .orderBy("created_at", "desc")
-      .returning("*");
-  }
+type FindManyParams = Partial<
+  Pick<
+    WhatsappMessage,
+    | "session_id"
+    | "target_phone"
+    | "text_message"
+    | "environment"
+    | "country_code"
+    | "status"
+  >
+>;
+
+const findMany = async (params: FindManyParams): Promise<WhatsappMessage[]> => {
+  logger.info("[wa-message-findMany]");
+
   return await pg(TABLES.WHATSAPP_MESSAGES)
-    .whereIn("session_id", payload.sessionIds)
-    .offset(payload.offset)
-    .limit(payload.limit)
+    .where(params)
     .orderBy("created_at", "desc")
     .returning("*");
 };
 
-export const countWhatsappMessages = async (
-  payload: Pick<FindManyWhatsappMessagesPayload, "sessionIds" | "environment">,
-): Promise<{ count: string }> => {
-  logger.info("countWhatsappMessages");
-  if (payload.environment) {
-    return (await pg(TABLES.WHATSAPP_MESSAGES)
-      .count("id")
-      .whereIn("session_id", payload.sessionIds)
-      .andWhere("environment", payload.environment)
-      .first()) as { count: string };
+const findManyBySessionIds = async (
+  sessionIds: string[],
+  params?: FindManyParams,
+  offset?: number,
+  limit?: number,
+): Promise<WhatsappMessage[]> => {
+  logger.info("[wa-message-findManyBySessionIds]");
+
+  const query = pg(TABLES.WHATSAPP_MESSAGES).whereIn("session_id", sessionIds);
+  if (params && Object.keys(params).length > 0) {
+    query.andWhere({ ...params });
   }
-  return (await pg(TABLES.WHATSAPP_MESSAGES)
-    .count("id")
-    .whereIn("session_id", payload.sessionIds)
-    .first()) as { count: string };
+  if (typeof offset === "number") {
+    query.offset(offset);
+  }
+  if (typeof limit === "number") {
+    query.limit(limit);
+  }
+  query.orderBy("created_at", "desc");
+  return await query.returning("*");
 };
 
-export const countAllTimeWhatsappMessages = async (sessionIds: string[]) => {
-  logger.info("countAllTimeWhatsappMessages");
+const count = async (
+  sessionIds: string[],
+  params?: FindManyParams,
+): Promise<{ count: string }> => {
+  logger.info("[wa-message-count]");
+
+  const query = pg(TABLES.WHATSAPP_MESSAGES)
+    .count()
+    .whereIn("session_id", sessionIds);
+  if (params && Object.keys(params).length > 0) {
+    query.andWhere({ ...params });
+  }
+
+  return (await query.first()) as { count: string };
+};
+
+const countCurrentMonth = async (
+  sessionIds: string[],
+): Promise<{ count: string }> => {
+  logger.info("[wa-message-countCurrentMonth]");
+
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
+
+  const endOfMonth = new Date(startOfMonth);
+  endOfMonth.setMonth(endOfMonth.getMonth() + 1);
+  endOfMonth.setMilliseconds(-1);
+
+  const msgCount = await pg(TABLES.WHATSAPP_MESSAGES)
+    .count()
+    .whereIn("session_id", sessionIds)
+    .andWhereBetween("created_at", [startOfMonth, endOfMonth])
+    .first();
+  return msgCount as { count: string };
+};
+
+const countAllTime = async (sessionIds: string[]) => {
+  logger.info("[wa-message-countAllTime]");
   return pg(TABLES.WHATSAPP_MESSAGES)
     .select(
       pg.raw("EXTRACT(YEAR FROM created_at) AS year"),
@@ -111,20 +135,42 @@ export const countAllTimeWhatsappMessages = async (sessionIds: string[]) => {
     .returning("*");
 };
 
-export const countCurrentDayAndCurrentHourWhatsappMessages = async (
-  sessionIds: string[],
-): Promise<{ last_hour_count: string; today_count: string }[]> => {
-  logger.info("countCurrentDayAndCurrentHourWhatsappMessages");
+type UpdateFilter = Partial<
+  Pick<
+    WhatsappMessage,
+    | "id"
+    | "session_id"
+    | "target_phone"
+    | "text_message"
+    | "status"
+    | "environment"
+  >
+>;
 
+type UpdateParams = Partial<
+  Pick<
+    WhatsappMessage,
+    "session_id" | "target_phone" | "text_message" | "status" | "environment"
+  >
+>;
+
+const update = async (
+  filter: UpdateFilter,
+  params: UpdateParams,
+): Promise<WhatsappMessage[]> => {
+  logger.info("[wa-message-update]");
   return await pg(TABLES.WHATSAPP_MESSAGES)
-    .select(
-      pg.raw(
-        `COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 hour') AS last_hour_count`,
-      ),
-      pg.raw(
-        `COUNT(*) FILTER (WHERE created_at >= DATE_TRUNC('day', NOW())) AS today_count`,
-      ),
-    )
-    .whereIn("session_id", sessionIds)
+    .where(filter)
+    .update(params)
     .returning("*");
+};
+
+export const services = {
+  create,
+  findMany,
+  findManyBySessionIds,
+  count,
+  countAllTime,
+  countCurrentMonth,
+  update,
 };

@@ -3,13 +3,13 @@ import { ENV } from "../env";
 import { responseJson } from "./response";
 import { logger } from "../lib/logger";
 import bcrypt from "bcrypt";
-import { findApiKey } from "../api-keys/services";
+import apiKeys from "../api-keys";
 
 const verifyAccessToken = async (
   accessToken: string,
 ): Promise<{ status: string }> => {
   try {
-    logger.info("Verifying access token");
+    logger.info("[verifyAccessToken]");
     if (!ENV.SUPERTOKENS_CONNECTION_URI || !ENV.SUPERTOKENS_API_KEY) {
       throw new Error("SUPERTOKENS ENV are not set");
     }
@@ -31,7 +31,7 @@ const verifyAccessToken = async (
     );
     return await res.json();
   } catch (error) {
-    logger.error("Error verifying access token", error);
+    logger.error("[verifyAccessToken]", error);
     throw error;
   }
 };
@@ -41,7 +41,7 @@ export const accessTokenMiddleware = async (
   res: Response,
   next: NextFunction,
 ) => {
-  logger.info("Access token middleware");
+  logger.info("[accessTokenMiddleware]");
   const accessToken = req.header("x-access-token");
 
   if (!accessToken) {
@@ -68,7 +68,7 @@ export const publicApiKeyMiddleware = async (
   res: Response,
   next: NextFunction,
 ) => {
-  logger.info("API Key middleware");
+  logger.info("[publicApiKeyMiddleware]");
   const apiKeyId = req.header("x-client-id");
   const apiKey = req.header("x-api-key");
 
@@ -77,13 +77,13 @@ export const publicApiKeyMiddleware = async (
     return res.status(401).json(jsonResponse);
   }
 
-  const dbApiKey = await findApiKey(apiKeyId);
-  if (!dbApiKey || dbApiKey.length === 0) {
-    const jsonResponse = responseJson(403, null, "Forbidden");
-    return res.status(403).json(jsonResponse);
+  const dbApiKey = await apiKeys.services.find({ id: apiKeyId });
+  if (!dbApiKey) {
+    const jsonResponse = responseJson(400, null, "Invalid API Key");
+    return res.status(400).json(jsonResponse);
   }
 
-  const isValid = await bcrypt.compare(apiKey, dbApiKey[0].api_key);
+  const isValid = await bcrypt.compare(apiKey, dbApiKey.api_key);
   if (!isValid) {
     const jsonResponse = responseJson(403, null, "Forbidden");
     return res.status(403).json(jsonResponse);

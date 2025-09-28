@@ -14,71 +14,70 @@ export type WhatsappSession = {
   daily_limit: number;
 };
 
-export const createWhatsappSession = async (
-  userId: string,
-  phone: string,
-): Promise<WhatsappSession[]> => {
-  logger.info("createWhatsappSession", { userId, phone });
-  return await pg(TABLES.WHATSAPP_SESSIONS)
-    .insert({
-      user_id: userId,
-      phone,
-      is_ready: false,
-    })
-    .returning("*");
-};
-
-export const updateWhatsappSession = async (
-  id: string,
-  payload: Partial<
-    Pick<
-      WhatsappSession,
-      "phone" | "is_ready" | "is_deleted" | "hourly_limit" | "daily_limit"
-    >
-  >,
-): Promise<WhatsappSession[]> => {
-  logger.info("updateWhatsappSession", { id, payload });
-  return await pg(TABLES.WHATSAPP_SESSIONS)
-    .update({
-      ...payload,
-    })
-    .where({ id })
-    .returning("*");
-};
-
-type WhatsappSessionSearchKey = Partial<
-  Pick<WhatsappSession, "id" | "user_id" | "phone" | "is_ready" | "is_deleted">
+type CreateParams = Partial<
+  Omit<WhatsappSession, "id" | "created_at" | "updated_at">
 >;
 
-export const findManyWhatsappSessions = async (
-  searchKeys: WhatsappSessionSearchKey,
+const create = async (params: CreateParams): Promise<WhatsappSession[]> => {
+  logger.info("[wa-session-create]");
+  return await pg(TABLES.WHATSAPP_SESSIONS).insert(params).returning("*");
+};
+
+type UpdateParams = Partial<Omit<WhatsappSession, "created_at" | "updated_at">>;
+
+export const update = async (
+  filter: UpdateParams,
+  params: UpdateParams,
 ): Promise<WhatsappSession[]> => {
-  logger.info("findWhatsappSessions", { ...searchKeys });
+  logger.info("[wa-session-update]");
   return await pg(TABLES.WHATSAPP_SESSIONS)
-    .where({ ...searchKeys })
+    .where(filter)
+    .update(params)
+    .returning("*");
+};
+
+type FindManyParams = Partial<
+  Omit<WhatsappSession, "id" | "created_at" | "updated_at" | "phone">
+>;
+
+const findMany = async (params: FindManyParams): Promise<WhatsappSession[]> => {
+  logger.info("[wa-session-findMany]");
+  return await pg(TABLES.WHATSAPP_SESSIONS)
+    .where(params)
     .orderBy("created_at", "desc")
     .returning("*");
 };
 
-export const findOneWhatsappSession = async (
-  searchKeys: WhatsappSessionSearchKey,
+type FindOneParams = Partial<
+  Omit<WhatsappSession, "created_at" | "updated_at">
+>;
+
+export const find = async (
+  params: FindOneParams,
 ): Promise<WhatsappSession | null> => {
-  logger.info("findOneWhatsappSession", { ...searchKeys });
+  logger.info("[wa-session-find]");
   return await pg(TABLES.WHATSAPP_SESSIONS)
-    .where({ ...searchKeys })
+    .where(params)
     .orderBy("created_at", "desc")
     .first();
 };
 
-export const deleteWhatsappSession = async (
-  sessionId: string,
-  userId: string,
-): Promise<WhatsappSession[] | null> => {
-  logger.info("deleteWhatsappSession", { sessionId, userId });
+export const findManyBySessionIds = async (
+  sessionIds: string[],
+  params: FindManyParams,
+): Promise<WhatsappSession[]> => {
+  logger.info("[wa-session-findManyBySessionIds]");
   return await pg(TABLES.WHATSAPP_SESSIONS)
-    .update({
-      is_deleted: true,
-    })
-    .where({ id: sessionId, user_id: userId })
+    .whereIn("id", sessionIds)
+    .andWhere(params)
+    .orderBy("created_at", "desc")
     .returning("*");
+};
+
+export const services = {
+  create,
+  update,
+  find,
+  findMany,
+  findManyBySessionIds,
 };
