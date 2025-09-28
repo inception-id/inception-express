@@ -96,7 +96,7 @@ export const send = async (req: Request, res: Response) => {
         text_message: message,
         environment: messageEnvironment,
         country_code: countryCode ? countryCode : "62",
-        status: WhatsappStatus.Delivered,
+        status: sendNow ? WhatsappStatus.Delivered : WhatsappStatus.Pending,
       });
       const json = responseJson(201, whatsappMessage[0], "Created");
       res.status(201).json(json);

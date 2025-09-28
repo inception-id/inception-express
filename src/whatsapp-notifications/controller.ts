@@ -159,7 +159,7 @@ const sendBatch = async (req: Request, res: Response) => {
       {
         count: savedNotifications.length,
       },
-      "OK",
+      WhatsappStatus.Pending,
     );
     res.status(200).json(json);
   } catch (err: any) {
