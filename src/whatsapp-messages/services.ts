@@ -14,6 +14,7 @@ export type WhatsappMessage = {
   environment: WhatsappEnvironment;
   country_code: string;
   status: WhatsappStatus | null;
+  media_url: string | null;
 };
 
 type CreateParam = Pick<
@@ -24,6 +25,7 @@ type CreateParam = Pick<
   | "environment"
   | "country_code"
   | "status"
+  | "media_url"
 >;
 
 const create = async (
@@ -31,13 +33,6 @@ const create = async (
 ): Promise<WhatsappMessage[]> => {
   logger.info("[wa-message-create]");
   return await pg(TABLES.WHATSAPP_MESSAGES).insert(payload).returning("*");
-};
-
-type FindManyWhatsappMessagesPayload = {
-  sessionIds: string[];
-  offset: number;
-  limit: number;
-  environment?: WhatsappEnvironment;
 };
 
 type FindManyParams = Partial<
@@ -150,7 +145,12 @@ type UpdateFilter = Partial<
 type UpdateParams = Partial<
   Pick<
     WhatsappMessage,
-    "session_id" | "target_phone" | "text_message" | "status" | "environment"
+    | "session_id"
+    | "target_phone"
+    | "text_message"
+    | "status"
+    | "environment"
+    | "media_url"
   >
 >;
 

@@ -30,11 +30,12 @@ const SendSchema = z.object({
     .regex(/^[0-9]+$/, "must be a set of numbers")
     .optional()
     .default("62"),
+  mediaUrl: z.string().url().optional(),
 });
 
 export const send = async (req: Request, res: Response) => {
   logger.info(`[wa-notif-controller-send]`);
-  const { targetPhoneNumber, message, environment, countryCode } =
+  const { targetPhoneNumber, message, environment, countryCode, mediaUrl } =
     req.body satisfies z.infer<typeof SendSchema>;
 
   try {
@@ -72,6 +73,7 @@ export const send = async (req: Request, res: Response) => {
         environment: notifEnvironment,
         country_code: countryCode ? countryCode : "62",
         status: WhatsappStatus.Pending,
+        media_url: mediaUrl,
       });
       const response: Omit<WhatsappNotification, "user_id" | "session_id"> = {
         id: whatsappNotif[0].id,
@@ -82,16 +84,21 @@ export const send = async (req: Request, res: Response) => {
         environment: whatsappNotif[0].environment,
         country_code: whatsappNotif[0].country_code,
         status: whatsappNotif[0].status,
+        media_url: whatsappNotif[0].media_url,
       };
       const json = responseJson(201, response, WhatsappStatus.Pending);
       res.status(201).json(json);
     } else {
-      const sentMessage = await whatsapp.services.sendMessage(
-        String(ENV.INCEPTION_WHATSAPP_SESSION_ID),
-        targetPhoneNumber,
+      const sendMessageParam = {
+        sessionId: String(ENV.INCEPTION_WHATSAPP_SESSION_ID),
+        phoneNumber: targetPhoneNumber,
         message,
         countryCode,
-      );
+        mediaUrl,
+      };
+
+      const sentMessage = await whatsapp.services.sendMessage(sendMessageParam);
+
       if (sentMessage?.id) {
         const whatsappNotif = await services.create({
           session_id: String(ENV.INCEPTION_WHATSAPP_SESSION_ID),
@@ -101,6 +108,7 @@ export const send = async (req: Request, res: Response) => {
           environment: notifEnvironment,
           country_code: countryCode,
           status: WhatsappStatus.Delivered,
+          media_url: mediaUrl,
         });
         const response: Omit<WhatsappNotification, "user_id" | "session_id"> = {
           id: whatsappNotif[0].id,
@@ -111,6 +119,7 @@ export const send = async (req: Request, res: Response) => {
           environment: whatsappNotif[0].environment,
           country_code: whatsappNotif[0].country_code,
           status: whatsappNotif[0].status,
+          media_url: whatsappNotif[0].media_url,
         };
         const json = responseJson(200, response, WhatsappStatus.Delivered);
         return res.status(200).json(json);
@@ -150,6 +159,7 @@ const sendBatch = async (req: Request, res: Response) => {
         environment: WhatsappEnvironment.Production,
         country_code: notif.countryCode ? notif.countryCode : "62",
         status: WhatsappStatus.Pending,
+        media_url: notif.mediaUrl,
       }),
     );
     const savedNotifications = await services.create(notifications);

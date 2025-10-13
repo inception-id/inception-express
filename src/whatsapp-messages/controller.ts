@@ -37,6 +37,7 @@ const SendWhatsappMessageSchema = z.object({
     .optional()
     .default("62"),
   sendNow: z.boolean().optional().default(true),
+  mediaUrl: z.string().url().optional(),
 });
 
 export const send = async (req: Request, res: Response) => {
@@ -49,6 +50,7 @@ export const send = async (req: Request, res: Response) => {
     environment,
     countryCode,
     sendNow,
+    mediaUrl,
   } = req.body satisfies z.infer<typeof SendWhatsappMessageSchema>;
 
   try {
@@ -82,28 +84,52 @@ export const send = async (req: Request, res: Response) => {
         ? WhatsappEnvironment.Production
         : environment;
 
-    const sentMessage = await whatsapp.services.sendMessage(
-      whatsappSession.id,
-      targetPhoneNumber,
-      message,
-      countryCode,
-    );
+    if (sendNow) {
+      const sendMessageParam = {
+        sessionId: whatsappSession.id,
+        phoneNumber: targetPhoneNumber,
+        message,
+        countryCode,
+        mediaUrl,
+      };
+      const sentMessage = await whatsapp.services.sendMessage(sendMessageParam);
 
-    if (sentMessage?.id) {
+      if (sentMessage?.id) {
+        const whatsappMessage = await services.create({
+          session_id: whatsappSession.id,
+          target_phone: targetPhoneNumber,
+          text_message: message,
+          environment: messageEnvironment,
+          country_code: countryCode ? countryCode : "62",
+          status: WhatsappStatus.Delivered,
+          media_url: mediaUrl ? mediaUrl : null,
+        });
+        const json = responseJson(
+          201,
+          whatsappMessage[0],
+          WhatsappStatus.Delivered,
+        );
+        return res.status(201).json(json);
+      }
+    } else {
       const whatsappMessage = await services.create({
         session_id: whatsappSession.id,
         target_phone: targetPhoneNumber,
         text_message: message,
         environment: messageEnvironment,
         country_code: countryCode ? countryCode : "62",
-        status: sendNow ? WhatsappStatus.Delivered : WhatsappStatus.Pending,
+        status: WhatsappStatus.Pending,
+        media_url: mediaUrl ? mediaUrl : null,
       });
-      const json = responseJson(201, whatsappMessage[0], "Created");
-      res.status(201).json(json);
-    } else {
-      const json = responseJson(500, null, "");
-      res.status(500).json(json);
+      const json = responseJson(
+        200,
+        whatsappMessage[0],
+        WhatsappStatus.Pending,
+      );
+      return res.status(200).json(json);
     }
+    const json = responseJson(500, null, "");
+    return res.status(500).json(json);
   } catch (err: any) {
     logger.error("[wa-message-controller-send]", err);
     return errorHandler(err, res);
@@ -208,6 +234,7 @@ export const sendBatch = async (req: Request, res: Response) => {
         environment: WhatsappEnvironment.Production,
         country_code: message.countryCode ? message.countryCode : "62",
         status: WhatsappStatus.Pending,
+        media_url: message.mediaUrl,
       }),
     );
 
