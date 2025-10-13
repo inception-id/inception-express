@@ -29,6 +29,7 @@ const sendAndUpdateMessage = async (message: WhatsappMessage) => {
     phoneNumber: message.target_phone,
     message: String(message.text_message),
     countryCode: message.country_code,
+    media_url: message.media_url,
   };
   const msg = await whatsapp.services.sendMessage(sendMessageParam);
 
