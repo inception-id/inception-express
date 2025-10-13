@@ -143,6 +143,7 @@ type SendMessageParam = {
   phoneNumber: string;
   message: string;
   countryCode?: string;
+  mediaUrl?: string | null;
 };
 
 const sendMessage = async ({
@@ -150,6 +151,7 @@ const sendMessage = async ({
   phoneNumber,
   message,
   countryCode,
+  mediaUrl,
 }: SendMessageParam): Promise<WAWebJS.Message | null> => {
   logger.info("[sendWhatsapp]");
   try {
@@ -157,16 +159,22 @@ const sendMessage = async ({
     const chatId = prefixCode + phoneNumber + "@c.us";
     const clientStore = whatsappClientStore.get(sessionId);
 
-    const url =
-      "https://asset.kompas.com/crops/H6caBDSNUvLQImMEY8Y9nTsPEac=/0x103:1920x1383/1200x800/data/photo/2022/08/12/62f5b4c7bafb2.jpg";
-
-    const media = await MessageMedia.fromUrl(url);
     if (!clientStore) {
       const client = await reconnectClient(sessionId);
       if (client) {
+        if (mediaUrl) {
+          const media = await MessageMedia.fromUrl(mediaUrl);
+          return await client.sendMessage(chatId, media, { caption: message });
+        }
         return await client.sendMessage(chatId, message);
       }
     } else {
+      if (mediaUrl) {
+        const media = await MessageMedia.fromUrl(mediaUrl);
+        return await clientStore.sendMessage(chatId, media, {
+          caption: message,
+        });
+      }
       return await clientStore.sendMessage(chatId, message);
     }
     return null;

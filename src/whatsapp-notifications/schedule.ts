@@ -39,6 +39,7 @@ const send = async () => {
         phoneNumber: notification.target_phone,
         message: notification.text_message || "",
         countryCode: notification.country_code,
+        mediaUrl: notification.media_url,
       };
       const sentNotification =
         await whatsapp.services.sendMessage(sendMessageParam);

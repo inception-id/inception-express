@@ -14,6 +14,7 @@ export type WhatsappNotification = {
   environment: WhatsappEnvironment;
   country_code: string;
   status: WhatsappStatus | null;
+  media_url: string | null;
 };
 
 type CreateParam = Pick<
@@ -25,6 +26,7 @@ type CreateParam = Pick<
   | "environment"
   | "country_code"
   | "status"
+  | "media_url"
 >;
 
 export const create = async (

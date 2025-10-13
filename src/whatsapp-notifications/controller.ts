@@ -73,6 +73,7 @@ export const send = async (req: Request, res: Response) => {
         environment: notifEnvironment,
         country_code: countryCode ? countryCode : "62",
         status: WhatsappStatus.Pending,
+        media_url: mediaUrl,
       });
       const response: Omit<WhatsappNotification, "user_id" | "session_id"> = {
         id: whatsappNotif[0].id,
@@ -83,6 +84,7 @@ export const send = async (req: Request, res: Response) => {
         environment: whatsappNotif[0].environment,
         country_code: whatsappNotif[0].country_code,
         status: whatsappNotif[0].status,
+        media_url: whatsappNotif[0].media_url,
       };
       const json = responseJson(201, response, WhatsappStatus.Pending);
       res.status(201).json(json);
@@ -92,8 +94,11 @@ export const send = async (req: Request, res: Response) => {
         phoneNumber: targetPhoneNumber,
         message,
         countryCode,
+        mediaUrl,
       };
+
       const sentMessage = await whatsapp.services.sendMessage(sendMessageParam);
+
       if (sentMessage?.id) {
         const whatsappNotif = await services.create({
           session_id: String(ENV.INCEPTION_WHATSAPP_SESSION_ID),
@@ -103,6 +108,7 @@ export const send = async (req: Request, res: Response) => {
           environment: notifEnvironment,
           country_code: countryCode,
           status: WhatsappStatus.Delivered,
+          media_url: mediaUrl,
         });
         const response: Omit<WhatsappNotification, "user_id" | "session_id"> = {
           id: whatsappNotif[0].id,
@@ -113,6 +119,7 @@ export const send = async (req: Request, res: Response) => {
           environment: whatsappNotif[0].environment,
           country_code: whatsappNotif[0].country_code,
           status: whatsappNotif[0].status,
+          media_url: whatsappNotif[0].media_url,
         };
         const json = responseJson(200, response, WhatsappStatus.Delivered);
         return res.status(200).json(json);
@@ -152,6 +159,7 @@ const sendBatch = async (req: Request, res: Response) => {
         environment: WhatsappEnvironment.Production,
         country_code: notif.countryCode ? notif.countryCode : "62",
         status: WhatsappStatus.Pending,
+        media_url: notif.mediaUrl,
       }),
     );
     const savedNotifications = await services.create(notifications);
