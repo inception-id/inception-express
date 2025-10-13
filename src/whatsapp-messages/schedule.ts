@@ -24,12 +24,13 @@ const defineEnvironment = async (sessionId: string) => {
 };
 
 const sendAndUpdateMessage = async (message: WhatsappMessage) => {
-  const msg = await whatsapp.services.sendMessage(
-    message.session_id,
-    message.target_phone,
-    String(message.text_message),
-    message.country_code,
-  );
+  const sendMessageParam = {
+    sessionId: message.session_id,
+    phoneNumber: message.target_phone,
+    message: String(message.text_message),
+    countryCode: message.country_code,
+  };
+  const msg = await whatsapp.services.sendMessage(sendMessageParam);
 
   const environment = await defineEnvironment(message.session_id);
   await services.update(

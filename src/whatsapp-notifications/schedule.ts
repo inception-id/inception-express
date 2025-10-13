@@ -33,12 +33,15 @@ const send = async () => {
     let failCount = 0;
     for (let i = 0; i < pendingNotifications.length; i++) {
       const notification = pendingNotifications[i];
-      const sentNotification = await whatsapp.services.sendMessage(
-        String(ENV.INCEPTION_WHATSAPP_SESSION_ID),
-        notification.target_phone,
-        notification.text_message || "",
-        notification.country_code,
-      );
+
+      const sendMessageParam = {
+        sessionId: String(ENV.INCEPTION_WHATSAPP_SESSION_ID),
+        phoneNumber: notification.target_phone,
+        message: notification.text_message || "",
+        countryCode: notification.country_code,
+      };
+      const sentNotification =
+        await whatsapp.services.sendMessage(sendMessageParam);
 
       const notifCount = await services.countCurrentMonth(notification.user_id);
       const environment =

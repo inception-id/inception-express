@@ -82,12 +82,13 @@ export const send = async (req: Request, res: Response) => {
         ? WhatsappEnvironment.Production
         : environment;
 
-    const sentMessage = await whatsapp.services.sendMessage(
-      whatsappSession.id,
-      targetPhoneNumber,
+    const sendMessageParam = {
+      sessionId: whatsappSession.id,
+      phoneNumber: targetPhoneNumber,
       message,
       countryCode,
-    );
+    };
+    const sentMessage = await whatsapp.services.sendMessage(sendMessageParam);
 
     if (sentMessage?.id) {
       const whatsappMessage = await services.create({

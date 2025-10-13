@@ -30,11 +30,12 @@ const SendSchema = z.object({
     .regex(/^[0-9]+$/, "must be a set of numbers")
     .optional()
     .default("62"),
+  mediaUrl: z.string().url().optional(),
 });
 
 export const send = async (req: Request, res: Response) => {
   logger.info(`[wa-notif-controller-send]`);
-  const { targetPhoneNumber, message, environment, countryCode } =
+  const { targetPhoneNumber, message, environment, countryCode, mediaUrl } =
     req.body satisfies z.infer<typeof SendSchema>;
 
   try {
@@ -86,12 +87,13 @@ export const send = async (req: Request, res: Response) => {
       const json = responseJson(201, response, WhatsappStatus.Pending);
       res.status(201).json(json);
     } else {
-      const sentMessage = await whatsapp.services.sendMessage(
-        String(ENV.INCEPTION_WHATSAPP_SESSION_ID),
-        targetPhoneNumber,
+      const sendMessageParam = {
+        sessionId: String(ENV.INCEPTION_WHATSAPP_SESSION_ID),
+        phoneNumber: targetPhoneNumber,
         message,
         countryCode,
-      );
+      };
+      const sentMessage = await whatsapp.services.sendMessage(sendMessageParam);
       if (sentMessage?.id) {
         const whatsappNotif = await services.create({
           session_id: String(ENV.INCEPTION_WHATSAPP_SESSION_ID),

@@ -1,4 +1,9 @@
-import WAWebJS, { Client, ClientOptions, LocalAuth } from "whatsapp-web.js";
+import WAWebJS, {
+  Client,
+  ClientOptions,
+  LocalAuth,
+  MessageMedia,
+} from "whatsapp-web.js";
 import { logger } from "../lib/logger";
 import fs from "fs";
 import whatsappSessions from "../whatsapp-sessions";
@@ -133,18 +138,29 @@ const destroyClient = async (sessionId: string): Promise<boolean> => {
   return await destroyLocalClient(sessionId);
 };
 
-const sendMessage = async (
-  sessionId: string,
-  phoneNumber: string,
-  message: string,
-  countryCode?: string,
-): Promise<WAWebJS.Message | null> => {
+type SendMessageParam = {
+  sessionId: string;
+  phoneNumber: string;
+  message: string;
+  countryCode?: string;
+};
+
+const sendMessage = async ({
+  sessionId,
+  phoneNumber,
+  message,
+  countryCode,
+}: SendMessageParam): Promise<WAWebJS.Message | null> => {
   logger.info("[sendWhatsapp]");
   try {
     const prefixCode = countryCode ? countryCode : "62";
     const chatId = prefixCode + phoneNumber + "@c.us";
     const clientStore = whatsappClientStore.get(sessionId);
 
+    const url =
+      "https://asset.kompas.com/crops/H6caBDSNUvLQImMEY8Y9nTsPEac=/0x103:1920x1383/1200x800/data/photo/2022/08/12/62f5b4c7bafb2.jpg";
+
+    const media = await MessageMedia.fromUrl(url);
     if (!clientStore) {
       const client = await reconnectClient(sessionId);
       if (client) {
