@@ -14,4 +14,5 @@ export enum WhatsappStatus {
   Pending = "PENDING",
   Delivered = "DELIVERED",
   Failed = "FAILED",
+  Disconnected = "WHATSAPP_DISCONNECTED",
 }

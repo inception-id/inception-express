@@ -59,7 +59,6 @@ const create = async (req: Request, res: Response) => {
     if (session?.length === 0) {
       const json = responseJson(500, null, "Fail to create session");
       return res.status(500).json(json);
-      return;
     }
     const client = await whatsapp.services.initClient(session[0].id);
     if (client) {
@@ -104,13 +103,10 @@ const remove = async (req: Request, res: Response) => {
   try {
     const accessToken = req.header("x-access-token") as string;
     const jwt = decode(accessToken) as JwtPayload & User;
-    const sessions = await services.update(
-      {
-        id: params.sessionId,
-        user_id: jwt.id,
-      },
-      { is_deleted: true },
-    );
+    const sessions = await services.find({
+      id: params.sessionId,
+      user_id: jwt.id,
+    });
     if (sessions) await whatsapp.services.destroyClient(params.sessionId);
     const json = responseJson(200, sessions, "");
     return res.status(200).json(json);

@@ -22,14 +22,9 @@ app.listen(port, async () => {
   setInterval(
     async () => {
       await waNotif.schedule.send();
+      await waMessage.schedule.send();
+      await waMessage.schedule.updateDisconnected();
     },
     1000 * 60 * 10,
   ); // Every 10 minutes
-
-  setInterval(
-    async () => {
-      await waMessage.schedule.send();
-    },
-    1000 * 60 * 60,
-  ); // Every one hour
 });
