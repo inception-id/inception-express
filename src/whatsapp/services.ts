@@ -30,7 +30,7 @@ const createClientOptions = (sessionId: string): ClientOptions => {
 const destroyLocalClient = async (sessionId: string) => {
   logger.info(`[wa-destroyLocalClient]: ${sessionId}`);
   // db
-  const session = await whatsappSessions.services.update(
+  await whatsappSessions.services.update(
     { id: sessionId },
     { is_disconnected: true },
   );
@@ -129,17 +129,14 @@ const reconnectClient = async (sessionId: string): Promise<Client | null> => {
 
 const destroyClient = async (sessionId: string): Promise<boolean> => {
   logger.info(`[destroyWhatsappClient] ${sessionId}`);
-  await whatsappSessions.services.update(
-    { id: sessionId },
-    { is_deleted: true, is_disconnected: true },
-  );
   let clientStore = whatsappClientStore.get(sessionId);
-  if (!clientStore) {
-    const client = await reconnectClient(sessionId);
-    if (client) await client.destroy();
-  } else {
+  if (clientStore) {
     await clientStore.destroy();
   }
+  await whatsappSessions.services.update(
+    { id: sessionId },
+    { is_deleted: true },
+  );
   return await destroyLocalClient(sessionId);
 };
 
