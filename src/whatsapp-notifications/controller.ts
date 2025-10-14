@@ -40,9 +40,9 @@ export const send = async (req: Request, res: Response) => {
     targetPhoneNumber,
     message,
     environment,
-    countryCode,
+    countryCode = "62",
     mediaUrl,
-    sendNow,
+    sendNow = true,
   } = req.body satisfies z.infer<typeof SendSchema>;
 
   try {
