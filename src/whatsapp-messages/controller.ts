@@ -48,8 +48,8 @@ export const send = async (req: Request, res: Response) => {
     targetPhoneNumber,
     message,
     environment,
-    countryCode,
-    sendNow,
+    countryCode = "62",
+    sendNow = true,
     mediaUrl,
   } = req.body satisfies z.infer<typeof SendWhatsappMessageSchema>;
 
