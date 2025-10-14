@@ -4,6 +4,7 @@ import { logger } from "./lib/logger";
 import { whatsappRouter } from "./whatsapp/controller";
 import waNotif from "./whatsapp-notifications";
 import waMessage from "./whatsapp-messages";
+import whatsappPayments from "./whatsapp-payments";
 
 export const app = express();
 
@@ -27,4 +28,5 @@ app.listen(port, async () => {
     },
     1000 * 60 * 10,
   ); // Every 10 minutes
+  await whatsappPayments.schedule.populate();
 });

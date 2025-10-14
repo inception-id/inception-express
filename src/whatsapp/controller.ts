@@ -10,6 +10,7 @@ import { User } from "../users/services";
 import waNotif from "../whatsapp-notifications";
 import waMessage from "../whatsapp-messages";
 import waSessions from "../whatsapp-sessions";
+import whatsappPayments from "../whatsapp-payments";
 
 export const whatsappRouter = Router();
 
@@ -95,4 +96,11 @@ whatsappRouter.get(
   "/notifications",
   accessTokenMiddleware,
   waNotif.controller.findMany,
+);
+
+// PAYMENTS
+whatsappRouter.get(
+  "/payments",
+  accessTokenMiddleware,
+  whatsappPayments.controller.findMany,
 );
