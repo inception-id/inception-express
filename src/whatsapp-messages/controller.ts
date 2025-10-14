@@ -11,6 +11,8 @@ import { errorHandler } from "../lib/error-handler";
 import { WhatsappStatus, WhatsappEnvironment } from "../lib/types";
 import whatsappSessions from "../whatsapp-sessions";
 import whatsapp from "../whatsapp";
+import whatsappNotifications from "../whatsapp-notifications";
+import { no } from "zod/v4/locales/index.cjs";
 
 const SendWhatsappMessageSchema = z.object({
   whatsappPhoneId: z.uuidv4("invalid format").min(1, "can not be empty"),
@@ -72,15 +74,12 @@ export const send = async (req: Request, res: Response) => {
       return res.status(404).json(json);
     }
 
-    const userSessions = await whatsappSessions.services.findMany({
-      user_id: whatsappSession.user_id,
-      is_ready: true,
-    });
-    const sessionIds = userSessions.map((session) => session.id);
+    const totalCount = await whatsapp.services.countCurrentMonthWhatsapp(
+      whatsappSession.user_id,
+    );
 
-    const messageCount = await services.countCurrentMonth(sessionIds);
     const messageEnvironment =
-      sendNow || Number(messageCount.count) > ENV.DEVELOPMENT_MONTHLY_LIMIT
+      Number(totalCount) > ENV.DEVELOPMENT_MONTHLY_LIMIT
         ? WhatsappEnvironment.Production
         : environment;
 

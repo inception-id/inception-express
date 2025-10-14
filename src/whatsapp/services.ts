@@ -7,6 +7,8 @@ import WAWebJS, {
 import { logger } from "../lib/logger";
 import fs from "fs";
 import whatsappSessions from "../whatsapp-sessions";
+import whatsappMessages from "../whatsapp-messages";
+import whatsappNotifications from "../whatsapp-notifications";
 
 const whatsappQrStore = new Map<string, string>();
 const whatsappClientStore = new Map<string, Client>();
@@ -186,9 +188,25 @@ const sendMessage = async ({
   }
 };
 
+const countCurrentMonthWhatsapp = async (userId: string) => {
+  const userSessions = await whatsappSessions.services.findMany({
+    user_id: userId,
+    is_ready: true,
+  });
+
+  const sessionIds = userSessions.map((session) => session.id);
+  const msgCount =
+    await whatsappMessages.services.countCurrentMonth(sessionIds);
+  const notifCount =
+    await whatsappNotifications.services.countCurrentMonth(userId);
+  const totalCount = notifCount.count + msgCount.count;
+  return totalCount;
+};
+
 export const services = {
   getClientQr,
   destroyClient,
   initClient,
   sendMessage,
+  countCurrentMonthWhatsapp,
 };

@@ -11,6 +11,8 @@ import { WhatsappStatus, WhatsappEnvironment } from "../lib/types";
 import { services, type WhatsappNotification } from "./services";
 import whatsapp from "../whatsapp";
 import apiKeys from "../api-keys";
+import whatsappMessages from "../whatsapp-messages";
+import whatsappSessions from "../whatsapp-sessions";
 
 const SendSchema = z.object({
   targetPhoneNumber: z
@@ -57,9 +59,11 @@ export const send = async (req: Request, res: Response) => {
     }
 
     const userId = dbApiKey.user_id;
-    const notifCount = await services.countCurrentMonth(userId);
+    const totalCount =
+      await whatsapp.services.countCurrentMonthWhatsapp(userId);
+
     const notifEnvironment =
-      Number(notifCount.count) > ENV.DEVELOPMENT_MONTHLY_LIMIT
+      Number(totalCount) > ENV.DEVELOPMENT_MONTHLY_LIMIT
         ? WhatsappEnvironment.Production
         : environment;
 
