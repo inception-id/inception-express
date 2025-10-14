@@ -31,12 +31,19 @@ const SendSchema = z.object({
     .optional()
     .default("62"),
   mediaUrl: z.string().url().optional(),
+  sendNow: z.boolean().optional().default(true),
 });
 
 export const send = async (req: Request, res: Response) => {
   logger.info(`[wa-notif-controller-send]`);
-  const { targetPhoneNumber, message, environment, countryCode, mediaUrl } =
-    req.body satisfies z.infer<typeof SendSchema>;
+  const {
+    targetPhoneNumber,
+    message,
+    environment,
+    countryCode,
+    mediaUrl,
+    sendNow,
+  } = req.body satisfies z.infer<typeof SendSchema>;
 
   try {
     SendSchema.parse(req.body);
@@ -56,39 +63,7 @@ export const send = async (req: Request, res: Response) => {
         ? WhatsappEnvironment.Production
         : environment;
 
-    const pendingNotifs = await services.findMany(
-      {
-        status: WhatsappStatus.Pending,
-      },
-      0,
-      1,
-    );
-
-    if (pendingNotifs.length > 1) {
-      const whatsappNotif = await services.create({
-        session_id: String(ENV.INCEPTION_WHATSAPP_SESSION_ID),
-        user_id: userId,
-        target_phone: targetPhoneNumber,
-        text_message: message,
-        environment: notifEnvironment,
-        country_code: countryCode ? countryCode : "62",
-        status: WhatsappStatus.Pending,
-        media_url: mediaUrl,
-      });
-      const response: Omit<WhatsappNotification, "user_id" | "session_id"> = {
-        id: whatsappNotif[0].id,
-        created_at: whatsappNotif[0].created_at,
-        updated_at: whatsappNotif[0].updated_at,
-        target_phone: whatsappNotif[0].target_phone,
-        text_message: whatsappNotif[0].text_message,
-        environment: whatsappNotif[0].environment,
-        country_code: whatsappNotif[0].country_code,
-        status: whatsappNotif[0].status,
-        media_url: whatsappNotif[0].media_url,
-      };
-      const json = responseJson(201, response, WhatsappStatus.Pending);
-      res.status(201).json(json);
-    } else {
+    if (sendNow) {
       const sendMessageParam = {
         sessionId: String(ENV.INCEPTION_WHATSAPP_SESSION_ID),
         phoneNumber: targetPhoneNumber,
@@ -124,9 +99,33 @@ export const send = async (req: Request, res: Response) => {
         const json = responseJson(200, response, WhatsappStatus.Delivered);
         return res.status(200).json(json);
       }
-      const json = responseJson(500, null, "");
-      return res.status(500).json(json);
+    } else {
+      const whatsappNotif = await services.create({
+        session_id: String(ENV.INCEPTION_WHATSAPP_SESSION_ID),
+        user_id: userId,
+        target_phone: targetPhoneNumber,
+        text_message: message,
+        environment: notifEnvironment,
+        country_code: countryCode ? countryCode : "62",
+        status: WhatsappStatus.Pending,
+        media_url: mediaUrl,
+      });
+      const response: Omit<WhatsappNotification, "user_id" | "session_id"> = {
+        id: whatsappNotif[0].id,
+        created_at: whatsappNotif[0].created_at,
+        updated_at: whatsappNotif[0].updated_at,
+        target_phone: whatsappNotif[0].target_phone,
+        text_message: whatsappNotif[0].text_message,
+        environment: whatsappNotif[0].environment,
+        country_code: whatsappNotif[0].country_code,
+        status: whatsappNotif[0].status,
+        media_url: whatsappNotif[0].media_url,
+      };
+      const json = responseJson(201, response, WhatsappStatus.Pending);
+      return res.status(201).json(json);
     }
+    const json = responseJson(500, null, "Internal Server Error");
+    return res.status(500).json(json);
   } catch (err: any) {
     logger.error(`[wa-notif-controller-send]`, err);
     return errorHandler(err, res);

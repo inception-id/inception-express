@@ -105,11 +105,11 @@ export const send = async (req: Request, res: Response) => {
           media_url: mediaUrl ? mediaUrl : null,
         });
         const json = responseJson(
-          201,
+          200,
           whatsappMessage[0],
           WhatsappStatus.Delivered,
         );
-        return res.status(201).json(json);
+        return res.status(200).json(json);
       }
     } else {
       const whatsappMessage = await services.create({
@@ -122,11 +122,11 @@ export const send = async (req: Request, res: Response) => {
         media_url: mediaUrl ? mediaUrl : null,
       });
       const json = responseJson(
-        200,
+        201,
         whatsappMessage[0],
         WhatsappStatus.Pending,
       );
-      return res.status(200).json(json);
+      return res.status(201).json(json);
     }
     const json = responseJson(500, null, "");
     return res.status(500).json(json);
