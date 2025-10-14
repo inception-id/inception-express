@@ -44,7 +44,6 @@ const destroyLocalClient = async (sessionId: string) => {
     recursive: true,
     force: true,
   });
-  console.log(session);
   return whatsappClientStore.delete(sessionId);
 };
 
