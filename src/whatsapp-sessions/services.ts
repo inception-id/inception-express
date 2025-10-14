@@ -12,6 +12,7 @@ export type WhatsappSession = {
   is_deleted: boolean;
   hourly_limit: number;
   daily_limit: number;
+  is_disconnected: boolean;
 };
 
 type CreateParams = Partial<

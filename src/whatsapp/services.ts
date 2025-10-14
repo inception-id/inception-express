@@ -29,6 +29,11 @@ const createClientOptions = (sessionId: string): ClientOptions => {
 
 const destroyLocalClient = async (sessionId: string) => {
   logger.info(`[wa-destroyLocalClient]: ${sessionId}`);
+  // db
+  const session = await whatsappSessions.services.update(
+    { id: sessionId },
+    { is_disconnected: true },
+  );
   // localhost
   fs.rmSync(`.wwebjs_auth/session-${sessionId}`, {
     recursive: true,
@@ -126,7 +131,7 @@ const destroyClient = async (sessionId: string): Promise<boolean> => {
   logger.info(`[destroyWhatsappClient] ${sessionId}`);
   await whatsappSessions.services.update(
     { id: sessionId },
-    { is_deleted: true },
+    { is_deleted: true, is_disconnected: true },
   );
   let clientStore = whatsappClientStore.get(sessionId);
   if (!clientStore) {
