@@ -50,15 +50,7 @@ const send = async () => {
     `[wa-messsage-scheduleSend] Starting @ ${new Date().toLocaleString()}`,
   );
   try {
-    const activeSessions = await whatsappSessions.services.findMany({
-      is_ready: true,
-      is_deleted: false,
-      is_disconnected: false,
-    });
-
-    const sessionIds = activeSessions.map((session) => session.id);
-
-    const pendingMessages = await services.findManyBySessionIds(sessionIds, {
+    const pendingMessages = await services.findMany({
       status: WhatsappStatus.Pending,
     });
 
