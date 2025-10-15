@@ -11,4 +11,5 @@ export const ENV = {
   DOKU_API_URL: process.env.DOKU_API_URL,
   DOKU_CLIENT_ID: process.env.DOKU_CLIENT_ID,
   DOKU_SECRET_KEY: process.env.DOKU_SECRET_KEY,
+  DOKU_CALLBACK_URL: process.env.DOKU_CALLBACK_URL,
 };

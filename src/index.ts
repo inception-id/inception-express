@@ -17,6 +17,7 @@ app.get("/", async (req, res) => {
 });
 
 const port = 5500;
+
 app.listen(port, async () => {
   logger.info(`App listening on port ${port}`);
 
@@ -30,6 +31,6 @@ app.listen(port, async () => {
 
   setInterval(waMessage.schedule.updateDisconnected, 1000 * 60 * 60); // Every 60 minutes
 
-  // Run this on cron every 1st day of month
+  // Run every 1st day of month
   whatsappPayments.schedule.cron();
 });

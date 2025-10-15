@@ -38,7 +38,7 @@ const initiatePayment = async (email: string, amount: number) => {
         amount,
         invoice_number: `INV-${currentTimestamp}`,
         currency: "IDR",
-        callback_url: "https://inception.id/dashboard/whatsapp/payments",
+        callback_url: ENV.DOKU_CALLBACK_URL,
       },
       payment: {
         payment_due_date: 60,
