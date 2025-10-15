@@ -27,6 +27,7 @@ export type WhatsappPayment = {
   paid_at: string | null;
   year: number | null;
   month: number | null;
+  doku_notif: string | null;
 };
 
 type FindManyParams = Partial<
@@ -61,15 +62,33 @@ const count = async (params: FindManyParams): Promise<{ count: string }> => {
 
 type CreateParam = Omit<WhatsappPayment, "id" | "created_at" | "updated_at">;
 
-export const create = async (
+const create = async (
   payload: CreateParam | CreateParam[],
 ): Promise<WhatsappPayment[]> => {
   logger.info("[wa-payment-create]");
   return await pg(TABLES.WHATSAPP_PAYMENTS).insert(payload).returning("*");
 };
 
+// In Rupiah
+const countPricePerWhatsapp = (totalWhatsapp: number) => {
+  if (totalWhatsapp > 10000) {
+    return 10;
+  }
+  if (totalWhatsapp > 5000) {
+    return 20;
+  }
+  if (totalWhatsapp > 1000) {
+    return 30;
+  }
+  if (totalWhatsapp > 500) {
+    return 40;
+  }
+  return 50;
+};
+
 export const services = {
   findMany,
   count,
   create,
+  countPricePerWhatsapp,
 };

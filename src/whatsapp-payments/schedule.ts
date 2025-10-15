@@ -56,34 +56,11 @@ const aggregateLastMonthWhatsapp = async (): Promise<WhatsappAggregate[]> => {
   return whatsappAggregate;
 };
 
-// In Rupiah
-const pricePerWhatsapp = (totalWhatsapp: number) => {
-  if (totalWhatsapp > 10000) {
-    return 10;
-  }
-  if (totalWhatsapp > 5000) {
-    return 20;
-  }
-  if (totalWhatsapp > 1000) {
-    return 30;
-  }
-  if (totalWhatsapp > 500) {
-    return 40;
-  }
-  if (totalWhatsapp > 200) {
-    return 50;
-  }
-  return 100;
-};
-
 const populateUserPayment = async (aggregate: WhatsappAggregate) => {
   const totalWhatsapp =
     Number(aggregate.message_count) + Number(aggregate.notification_count);
-  const totalPayments = totalWhatsapp * pricePerWhatsapp(totalWhatsapp);
-  const paymentStatus =
-    totalPayments > 10001
-      ? WhatsappPaymentStatus.FREE
-      : WhatsappPaymentStatus.PENDING;
+  const totalPayments =
+    totalWhatsapp * services.countPricePerWhatsapp(totalWhatsapp);
 
   // Since always run on day 1 of the month
   const today = new Date();
@@ -100,20 +77,21 @@ const populateUserPayment = async (aggregate: WhatsappAggregate) => {
   > = {
     user_id: aggregate.user_id,
     amount: totalPayments,
-    payment_status: paymentStatus,
+    payment_status: WhatsappPaymentStatus.PENDING,
     items: JSON.stringify(items),
     paid_at: null,
     doku_request: null,
     doku_response: null,
     year: yesterday.getFullYear(),
     month: yesterday.getMonth(),
+    doku_notif: null,
   };
 
   const payment = await services.create(paymentParams);
   return payment;
 };
 
-export const populate = async () => {
+const populate = async () => {
   logger.info(
     `[wa-notif-schedulePopulate] Starting @ ${new Date().toLocaleString()}`,
   );
