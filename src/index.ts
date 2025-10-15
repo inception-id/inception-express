@@ -24,10 +24,12 @@ app.listen(port, async () => {
     async () => {
       await waNotif.schedule.send();
       await waMessage.schedule.send();
-      await waMessage.schedule.updateDisconnected();
     },
     1000 * 60 * 10,
   ); // Every 10 minutes
+
+  setInterval(waMessage.schedule.updateDisconnected, 1000 * 60 * 60); // Every 60 minutes
+
   // Run this on cron every 1st day of month
-  // await whatsappPayments.schedule.populate();
+  whatsappPayments.schedule.cron();
 });

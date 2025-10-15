@@ -2,6 +2,7 @@ import { pg } from "../db/pg";
 import { TABLES } from "../db/tables";
 import { logger } from "../lib/logger";
 import { services, WhatsappPayment, WhatsappPaymentStatus } from "./services";
+import { CronJob } from "cron";
 
 type WhatsappAggregate = {
   user_id: string;
@@ -93,7 +94,7 @@ const populateUserPayment = async (aggregate: WhatsappAggregate) => {
 
 const populate = async () => {
   logger.info(
-    `[wa-notif-schedulePopulate] Starting @ ${new Date().toLocaleString()}`,
+    `[wa-payment-schedulePopulate] Starting @ ${new Date().toLocaleString()}`,
   );
   const aggregates = await aggregateLastMonthWhatsapp();
   const paymentPromises = await Promise.allSettled(
@@ -103,10 +104,21 @@ const populate = async () => {
   const fail = paymentPromises.filter((p) => p.status === "rejected");
 
   logger.info(
-    `[wa-notif-schedulePopulate] ${success.length} success, ${fail.length} failed`,
+    `[wa-payment-schedulePopulate] ${success.length} success, ${fail.length} failed`,
   );
 };
 
+const cron = () => {
+  // Run this on cron every 1st day of month
+  const cronTime = "* 1 * 1 * *";
+  logger.info(`[wa-payment-cron] ${cronTime}`);
+  const job = new CronJob(
+    cronTime, // cronTime
+    populate, // onTick
+  );
+  job.start();
+};
+
 export const schedule = {
-  populate,
+  cron,
 };
