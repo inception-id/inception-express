@@ -228,7 +228,7 @@ const findMany = async (req: Request, res: Response) => {
     };
 
     const json = responseJson(200, { notifications, pagination }, "");
-    res.status(500).json(json);
+    res.status(200).json(json);
   } catch (err: any) {
     logger.error(`[wa-notif-controller-findMany]`, err);
     return errorHandler(err, res);

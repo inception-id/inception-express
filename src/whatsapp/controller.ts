@@ -104,3 +104,10 @@ whatsappRouter.get(
   accessTokenMiddleware,
   whatsappPayments.controller.findMany,
 );
+
+// PAYMENTS
+whatsappRouter.post(
+  "/payments/:id",
+  accessTokenMiddleware,
+  whatsappPayments.controller.create,
+);

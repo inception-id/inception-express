@@ -28,5 +28,6 @@ app.listen(port, async () => {
     },
     1000 * 60 * 10,
   ); // Every 10 minutes
-  await whatsappPayments.schedule.populate();
+  // Run this on cron every 1st day of month
+  // await whatsappPayments.schedule.populate();
 });

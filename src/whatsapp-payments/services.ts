@@ -21,7 +21,7 @@ export type WhatsappPayment = {
   updated_at: string;
   payment_status: WhatsappPaymentStatus;
   amount: number;
-  items: string;
+  items: WhatsappPaymentItem[] | string;
   doku_request: string | null;
   doku_response: string | null;
   paid_at: string | null;
@@ -34,30 +34,13 @@ type FindManyParams = Partial<
   Pick<WhatsappPayment, "user_id" | "payment_status">
 >;
 
-const findMany = async (
-  param: FindManyParams,
-  offset?: number,
-  limit?: number,
-): Promise<WhatsappPayment[]> => {
+const findMany = async (param: FindManyParams): Promise<WhatsappPayment[]> => {
   logger.info("[wa-payment-findMany]");
-  const query = pg(TABLES.WHATSAPP_PAYMENTS).where({ ...param });
-  if (typeof offset === "number") {
-    query.offset(offset);
-  }
-  if (typeof limit === "number") {
-    query.limit(limit);
-  }
-  query.orderBy("created_at", "desc");
-  return await query.returning("*");
-};
-
-const count = async (params: FindManyParams): Promise<{ count: string }> => {
-  logger.info("[wa-payment-count]");
-  const paymentCount = await pg(TABLES.WHATSAPP_PAYMENTS)
-    .count("id")
-    .where({ ...params })
-    .first();
-  return paymentCount as { count: string };
+  const query = await pg(TABLES.WHATSAPP_PAYMENTS)
+    .where({ ...param })
+    .orderBy("created_at", "desc")
+    .returning("*");
+  return query;
 };
 
 type CreateParam = Omit<WhatsappPayment, "id" | "created_at" | "updated_at">;
@@ -86,9 +69,40 @@ const countPricePerWhatsapp = (totalWhatsapp: number) => {
   return 50;
 };
 
+type FindOneParams = Partial<
+  Omit<WhatsappPayment, "created_at" | "updated_at">
+>;
+
+export const find = async (
+  params: FindOneParams,
+): Promise<WhatsappPayment | null> => {
+  logger.info("[wa-payment-find]");
+  return await pg(TABLES.WHATSAPP_PAYMENTS)
+    .where(params)
+    .orderBy("created_at", "desc")
+    .first();
+};
+
+type UpdateFilterParams = Partial<Pick<WhatsappPayment, "id">>;
+type UpdateParams = Partial<
+  Omit<WhatsappPayment, "id" | "user_id" | "created_at" | "updated_at">
+>;
+
+const update = async (
+  filter: UpdateFilterParams,
+  params: UpdateParams,
+): Promise<WhatsappPayment[]> => {
+  logger.info("[wa-payment-update]");
+  return await pg(TABLES.WHATSAPP_PAYMENTS)
+    .where({ ...filter })
+    .update({ ...params })
+    .returning("*");
+};
+
 export const services = {
   findMany,
-  count,
+  find,
   create,
   countPricePerWhatsapp,
+  update,
 };

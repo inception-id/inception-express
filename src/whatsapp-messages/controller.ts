@@ -185,7 +185,7 @@ const findMany = async (req: Request, res: Response) => {
     };
 
     const json = responseJson(200, { messages, pagination }, "");
-    res.status(500).json(json);
+    res.status(200).json(json);
   } catch (err: any) {
     logger.error("[wa-message-controller-findMany]", err);
     const json = responseJson(500, null, "");
