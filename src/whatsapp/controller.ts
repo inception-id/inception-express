@@ -105,7 +105,11 @@ whatsappRouter.get(
   whatsappPayments.controller.findMany,
 );
 
-// PAYMENTS
+whatsappRouter.post(
+  "/payments/callback/doku",
+  whatsappPayments.controller.callbackDoku,
+);
+
 whatsappRouter.post(
   "/payments/:id",
   accessTokenMiddleware,

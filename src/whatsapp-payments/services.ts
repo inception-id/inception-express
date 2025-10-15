@@ -24,7 +24,7 @@ export type WhatsappPayment = {
   items: WhatsappPaymentItem[] | string;
   doku_request: string | null;
   doku_response: string | null;
-  paid_at: string | null;
+  paid_at: Date | string | null;
   year: number | null;
   month: number | null;
   doku_notif: string | null;
@@ -99,10 +99,28 @@ const update = async (
     .returning("*");
 };
 
+const findDokuPayment = async (
+  invoiceNumber: string,
+  originalRequestId: string,
+): Promise<WhatsappPayment | null> => {
+  logger.info("[wa-payment-findDokuPayment]");
+  const query = await pg(TABLES.WHATSAPP_PAYMENTS)
+    .whereRaw(`doku_request ->'order'->>'invoice_number' = ?`, [invoiceNumber])
+    .andWhereRaw(`doku_response #>> '{response,order,invoice_number}' = ?`, [
+      invoiceNumber,
+    ])
+    .andWhereRaw(`doku_response #>> '{response,headers,request_id}' = ?`, [
+      originalRequestId,
+    ])
+    .first();
+  return query;
+};
+
 export const services = {
   findMany,
   find,
   create,
   countPricePerWhatsapp,
   update,
+  findDokuPayment,
 };
