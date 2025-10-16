@@ -17,9 +17,11 @@ const sendAndUpdateNotifications = async (
   const sentNotification =
     await whatsapp.services.sendMessage(sendMessageParam);
 
-  const notifCount = await services.countCurrentMonth(notification.user_id);
+  const totalCount = await whatsapp.services.countCurrentMonthWhatsapp(
+    notification.user_id,
+  );
   const environment =
-    Number(notifCount.count) > ENV.DEVELOPMENT_MONTHLY_LIMIT
+    Number(totalCount) > ENV.DEVELOPMENT_MONTHLY_LIMIT
       ? WhatsappEnvironment.Production
       : WhatsappEnvironment.Development;
   return await services.update(

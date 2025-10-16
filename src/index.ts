@@ -4,6 +4,7 @@ import { logger } from "./lib/logger";
 import { whatsappRouter } from "./whatsapp/controller";
 import waNotif from "./whatsapp-notifications";
 import waMessage from "./whatsapp-messages";
+import whatsappPayments from "./whatsapp-payments";
 
 export const app = express();
 
@@ -16,6 +17,7 @@ app.get("/", async (req, res) => {
 });
 
 const port = 5500;
+
 app.listen(port, async () => {
   logger.info(`App listening on port ${port}`);
 
@@ -23,8 +25,12 @@ app.listen(port, async () => {
     async () => {
       await waNotif.schedule.send();
       await waMessage.schedule.send();
-      await waMessage.schedule.updateDisconnected();
     },
     1000 * 60 * 10,
   ); // Every 10 minutes
+
+  setInterval(waMessage.schedule.updateDisconnected, 1000 * 60 * 60); // Every 60 minutes
+
+  // Run every 1st day of month
+  whatsappPayments.schedule.cron();
 });

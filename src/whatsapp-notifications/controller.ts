@@ -57,9 +57,11 @@ export const send = async (req: Request, res: Response) => {
     }
 
     const userId = dbApiKey.user_id;
-    const notifCount = await services.countCurrentMonth(userId);
+    const totalCount =
+      await whatsapp.services.countCurrentMonthWhatsapp(userId);
+
     const notifEnvironment =
-      Number(notifCount.count) > ENV.DEVELOPMENT_MONTHLY_LIMIT
+      Number(totalCount) > ENV.DEVELOPMENT_MONTHLY_LIMIT
         ? WhatsappEnvironment.Production
         : environment;
 
@@ -224,7 +226,7 @@ const findMany = async (req: Request, res: Response) => {
     };
 
     const json = responseJson(200, { notifications, pagination }, "");
-    res.status(500).json(json);
+    res.status(200).json(json);
   } catch (err: any) {
     logger.error(`[wa-notif-controller-findMany]`, err);
     return errorHandler(err, res);

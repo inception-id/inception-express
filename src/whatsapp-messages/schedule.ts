@@ -9,18 +9,18 @@ const defineEnvironment = async (sessionId: string) => {
   const session = await whatsappSessions.services.find({
     id: sessionId,
   });
-  const userSessions = await whatsappSessions.services.findMany({
-    user_id: session?.user_id,
-    is_ready: true,
-  });
-  const sessionIds = userSessions.map((session) => session.id);
+  if (session) {
+    const totalCount = await whatsapp.services.countCurrentMonthWhatsapp(
+      session?.user_id,
+    );
+    const environment =
+      Number(totalCount) > ENV.DEVELOPMENT_MONTHLY_LIMIT
+        ? WhatsappEnvironment.Production
+        : WhatsappEnvironment.Development;
+    return environment;
+  }
 
-  const messageCount = await services.countCurrentMonth(sessionIds);
-  const environment =
-    Number(messageCount.count) > ENV.DEVELOPMENT_MONTHLY_LIMIT
-      ? WhatsappEnvironment.Production
-      : WhatsappEnvironment.Development;
-  return environment;
+  return WhatsappEnvironment.Production;
 };
 
 const sendAndUpdateMessage = async (
