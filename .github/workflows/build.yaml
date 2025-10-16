@@ -32,3 +32,7 @@ jobs:
             SUPERTOKENS_API_KEY=${{ secrets.SUPERTOKENS_API_KEY}}
             INCEPTION_WHATSAPP_SESSION_ID=${{ secrets.INCEPTION_WHATSAPP_SESSION_ID }}
             DEVELOPMENT_MONTHLY_LIMIT=${{ secrets.DEVELOPMENT_MONTHLY_LIMIT }}
+            DOKU_API_URL=${{ secrets.DOKU_API_URL }}
+            DOKU_CLIENT_ID=${{ secrets.DOKU_CLIENT_ID }}
+            DOKU_SECRET_KEY=${{ secrets.DOKU_SECRET_KEY }}
+            DOKU_CALLBACK_URL=${{ secrets.DOKU_CALLBACK_URL }}
