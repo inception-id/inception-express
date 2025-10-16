@@ -86,6 +86,7 @@ const populateUserPayment = async (aggregate: WhatsappAggregate) => {
     year: yesterday.getFullYear(),
     month: yesterday.getMonth(),
     doku_notif: null,
+    per_unit_price: services.countPricePerWhatsapp(totalWhatsapp),
   };
 
   const payment = await services.create(paymentParams);

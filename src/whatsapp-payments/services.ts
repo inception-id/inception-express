@@ -28,6 +28,7 @@ export type WhatsappPayment = {
   year: number | null;
   month: number | null;
   doku_notif: string | null;
+  per_unit_price: number;
 };
 
 type FindManyParams = Partial<

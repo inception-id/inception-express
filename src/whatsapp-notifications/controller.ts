@@ -11,8 +11,6 @@ import { WhatsappStatus, WhatsappEnvironment } from "../lib/types";
 import { services, type WhatsappNotification } from "./services";
 import whatsapp from "../whatsapp";
 import apiKeys from "../api-keys";
-import whatsappMessages from "../whatsapp-messages";
-import whatsappSessions from "../whatsapp-sessions";
 
 const SendSchema = z.object({
   targetPhoneNumber: z

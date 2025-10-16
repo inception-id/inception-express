@@ -129,10 +129,11 @@ const countAllTime = async (userId: string) => {
       pg.raw("EXTRACT(MONTH FROM created_at) AS month"),
       pg.raw("COUNT(id) AS count"),
       pg.raw("environment"),
+      pg.raw("status"),
     )
     .where("user_id", userId)
-    .groupByRaw("year, month, environment")
-    .orderByRaw("year, month desc")
+    .groupByRaw("year, month, environment, status")
+    .orderByRaw("year desc, month desc, environment desc")
     .returning("*");
 };
 
