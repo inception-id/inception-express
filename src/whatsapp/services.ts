@@ -34,7 +34,7 @@ const destroyLocalClient = async (sessionId: string) => {
   // db
   await whatsappSessions.services.update(
     { id: sessionId },
-    { is_disconnected: true },
+    { is_ready: false },
   );
   // localhost
   fs.rmSync(`.wwebjs_auth/session-${sessionId}`, {
@@ -95,10 +95,7 @@ const initClient = async (sessionId: string): Promise<Client | null> => {
     return null;
   } catch (error) {
     logger.error(`[initClient] ${sessionId}:`, error);
-    whatsappSessions.services.update(
-      { id: sessionId },
-      { is_disconnected: true },
-    );
+    whatsappSessions.services.update({ id: sessionId }, { is_ready: false });
     return null;
   }
 };
@@ -139,10 +136,7 @@ const reconnectClient = async (sessionId: string): Promise<Client | null> => {
     return null;
   } catch (error) {
     logger.error(`[reconnectClient] ${sessionId}`, error);
-    whatsappSessions.services.update(
-      { id: sessionId },
-      { is_disconnected: true },
-    );
+    whatsappSessions.services.update({ id: sessionId }, { is_ready: false });
     return null;
   }
 };

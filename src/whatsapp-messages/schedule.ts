@@ -115,7 +115,7 @@ const updateDisconnected = async () => {
   );
   try {
     const disconnectedSessions = await whatsappSessions.services.findMany({
-      is_disconnected: true,
+      is_ready: false,
     });
 
     const sessionIds = disconnectedSessions.map((session) => session.id);

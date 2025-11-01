@@ -32,5 +32,5 @@ app.listen(port, async () => {
   setInterval(waMessage.schedule.updateDisconnected, 1000 * 60 * 60); // Every 60 minutes
 
   // Run every 1st day of month
-  // whatsappPayments.schedule.cron();
+  whatsappPayments.schedule.cron();
 });

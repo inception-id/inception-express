@@ -111,7 +111,7 @@ const populate = async () => {
 
 const cron = () => {
   // Run  every 1st day of month
-  const cronTime = "* * * 1 * *";
+  const cronTime = "0 1 0 1 * *";
   logger.info(`[wa-payment-cron] ${cronTime}`);
   const job = new CronJob(
     cronTime, // cronTime
