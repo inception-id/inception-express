@@ -3,6 +3,11 @@ import { TABLES } from "../db/tables";
 import { logger } from "../lib/logger";
 import { services, WhatsappPayment, WhatsappPaymentStatus } from "./services";
 import { CronJob } from "cron";
+import nodemailer from "nodemailer";
+import { sendMail } from "../lib/mail";
+import { ENV } from "../env";
+import { createPaymentEmailTemplate } from "./email";
+import users from "../users";
 
 type WhatsappAggregate = {
   user_id: string;
@@ -90,6 +95,15 @@ const populateUserPayment = async (aggregate: WhatsappAggregate) => {
   };
 
   const payment = await services.create(paymentParams);
+  const user = await users.services.find({ id: aggregate.user_id });
+  if (user) {
+    sendMail({
+      from: String(ENV.SMTP_FROM),
+      to: user?.email,
+      subject: "Whatsapp API Payment",
+      html: createPaymentEmailTemplate(user.email, payment[0].amount),
+    });
+  }
   return payment;
 };
 
@@ -109,7 +123,7 @@ const populate = async () => {
   );
 };
 
-const cron = () => {
+const cron = async () => {
   // Run  every 1st day of month
   const cronTime = "0 1 0 1 * *";
   logger.info(`[wa-payment-cron] ${cronTime}`);
