@@ -3,7 +3,6 @@ import { logger } from "../lib/logger";
 import { responseJson } from "../middleware/response";
 import { decode, JwtPayload } from "jsonwebtoken";
 import { services } from "./services";
-import z from "zod";
 import whatsapp from "../whatsapp";
 import users from "../users";
 import { User } from "../users/services";
