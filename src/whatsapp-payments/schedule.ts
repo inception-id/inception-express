@@ -96,7 +96,7 @@ const populateUserPayment = async (aggregate: WhatsappAggregate) => {
 
   const payment = await services.create(paymentParams);
   const user = await users.services.find({ id: aggregate.user_id });
-  if (user) {
+  if (user?.email) {
     sendMail({
       from: String(ENV.SMTP_FROM),
       to: user?.email,
