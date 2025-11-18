@@ -6,47 +6,19 @@ import { services } from "./services";
 import whatsapp from "../whatsapp";
 import users from "../users";
 import { User } from "../users/services";
+import z from "zod";
+import { errorHandler } from "../lib/error-handler";
+
+const CreateWaSessionSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+});
 
 const create = async (req: Request, res: Response) => {
-  logger.info("wa-session-controller-create");
-
-  if (!req.body) {
-    const json = responseJson(400, null, "Missing userId and phone");
-    return res.status(400).json(json);
-  }
-
-  let { phone } = req.body as {
-    phone: string;
-  };
-
-  if (!phone) {
-    const json = responseJson(400, null, "Missing phone");
-    return res.status(400).json(json);
-  }
-
-  if (!phone.match(/^8\d*$/)) {
-    // should start with 8 and contain only digits
-    const json = responseJson(
-      400,
-      null,
-      "Phone should start with 8 and contain only digits",
-    );
-    return res.status(400).json(json);
-  }
-  if (phone.length < 9) {
-    const json = responseJson(
-      400,
-      null,
-      "Phone should be at least 9 digits long",
-    );
-    return res.status(400).json(json);
-  }
-
-  if (phone.startsWith("0")) {
-    phone = phone.slice(1, phone.length);
-  }
+  logger.info("[wa-session-controller-create]");
 
   try {
+    CreateWaSessionSchema.parse(req.body);
+    const { name } = req.body;
     const accessToken = req.header("x-access-token") as string;
     const jwt = decode(accessToken) as JwtPayload & User;
     const user = await users.services.find({ id: jwt.id });
@@ -54,7 +26,11 @@ const create = async (req: Request, res: Response) => {
       const json = responseJson(400, null, "User not found");
       return res.status(400).json(json);
     }
-    const session = await services.create({ user_id: user.id, phone });
+    const session = await services.create({
+      user_id: user.id,
+      phone: "",
+      name,
+    });
     if (session?.length === 0) {
       const json = responseJson(500, null, "Fail to create session");
       return res.status(500).json(json);
@@ -70,8 +46,7 @@ const create = async (req: Request, res: Response) => {
     }
   } catch (err: any) {
     logger.error("[wa-session-controller-create]", err);
-    const json = responseJson(500, null, "Internal server error");
-    return res.status(500).json(json);
+    return errorHandler(err, res);
   }
 };
 

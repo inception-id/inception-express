@@ -50,9 +50,9 @@ const destroyLocalClient = async (sessionId: string) => {
 };
 
 const initClient = async (sessionId: string): Promise<Client | null> => {
-  logger.info(`[initClient]: ${sessionId}`);
-
   try {
+    logger.info(`[initClient]: ${sessionId}`);
+
     const client = new Client(createClientOptions(sessionId));
 
     const isInitialized = await new Promise<boolean>((resolve, reject) => {
@@ -60,10 +60,6 @@ const initClient = async (sessionId: string): Promise<Client | null> => {
         logger.error(`[initClient] auth_failure: ${message}`);
         const destroyed = await destroyLocalClient(sessionId);
         reject(destroyed);
-      });
-
-      client.on("authenticated", () => {
-        logger.info(`[initClient] authenticated: ${sessionId}`);
       });
 
       client.on("disconnected", async (reason) => {
@@ -78,21 +74,20 @@ const initClient = async (sessionId: string): Promise<Client | null> => {
         resolve(true);
       });
 
-      client.once("ready", () => {
+      client.once("ready", (arg) => {
         logger.info(`[initClient] ready:`, sessionId);
         whatsappQrStore.delete(sessionId);
         whatsappClientStore.set(sessionId, client);
-        whatsappSessions.services.update({ id: sessionId }, { is_ready: true });
+        whatsappSessions.services.update(
+          { id: sessionId },
+          { is_ready: true, phone: client.info.me.user },
+        );
         resolve(true);
       });
       client.initialize();
     });
 
-    if (isInitialized) {
-      return client;
-    }
-
-    return null;
+    return isInitialized ? client : null;
   } catch (error) {
     logger.error(`[initClient] ${sessionId}:`, error);
     whatsappSessions.services.update({ id: sessionId }, { is_ready: false });
@@ -101,19 +96,16 @@ const initClient = async (sessionId: string): Promise<Client | null> => {
 };
 
 const reconnectClient = async (sessionId: string): Promise<Client | null> => {
-  logger.info(`[reconnectClient]: ${sessionId}`);
-  const client = new Client(createClientOptions(sessionId));
-
   try {
+    logger.info(`[reconnectClient]: ${sessionId}`);
+
+    const client = new Client(createClientOptions(sessionId));
+
     const isInitialized = await new Promise<boolean>((resolve, reject) => {
       client.on("auth_failure", async (message) => {
         logger.error(`[reconnectClient] auth_failure: ${message}`);
         const destroyed = await destroyLocalClient(sessionId);
         reject(destroyed);
-      });
-
-      client.on("authenticated", () => {
-        logger.info(`[reconnectClient] authenticated: ${sessionId}`);
       });
 
       client.on("disconnected", async (reason) => {
@@ -130,10 +122,7 @@ const reconnectClient = async (sessionId: string): Promise<Client | null> => {
       client.initialize();
     });
 
-    if (isInitialized) {
-      return client;
-    }
-    return null;
+    return isInitialized ? client : null;
   } catch (error) {
     logger.error(`[reconnectClient] ${sessionId}`, error);
     whatsappSessions.services.update({ id: sessionId }, { is_ready: false });
